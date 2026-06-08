@@ -1,0 +1,363 @@
+# Deployment & Testing Reference
+
+## Table of Contents
+- [Project Setup](#project-setup)
+- [Foundry Setup](#foundry-setup)
+- [Hardhat Setup](#hardhat-setup)
+- [Local Development (Docker)](#local-development-docker)
+- [Testnet Deployment (Base Sepolia)](#testnet-deployment-base-sepolia)
+- [Foundry Testing](#foundry-testing)
+- [Hardhat Testing](#hardhat-testing)
+- [Scaffolding with create-inco-app](#scaffolding-with-create-inco-app)
+
+---
+
+## Project Setup
+
+### Dependencies (npm/bun)
+
+```bash
+# Core Inco Solidity library
+bun add @inco/lightning
+
+# For EList preview features
+bun add @inco/lightning-preview
+
+# Frontend JS SDK
+bun add @inco/js
+
+# Other common deps
+bun add @openzeppelin/contracts
+```
+
+### Solidity Version
+```
+solc = "0.8.30"
+evm_version = "cancun"
+```
+
+---
+
+## Foundry Setup
+
+### Recommended: Use lightning-rod template
+```bash
+git clone git@github.com:Inco-fhevm/lightning-rod.git
+cd lightning-rod
+bun install
+```
+
+### Manual Setup
+
+1. Install dependencies:
+```bash
+bun add @inco/lightning https://github.com/dapphub/ds-test https://github.com/foundry-rs/forge-std @openzeppelin/contracts
+```
+
+2. Create `remappings.txt`:
+```
+@openzeppelin/=../node_modules/@openzeppelin/
+forge-std/=../node_modules/forge-std/src/
+ds-test/=../node_modules/ds-test/src/
+@inco/=../node_modules/@inco/
+```
+
+3. `foundry.toml`:
+```toml
+[profile.default]
+src = "src"
+out = "out"
+libs = ["node_modules", "../node_modules"]
+solc = "0.8.30"
+evm_version = "cancun"
+optimizer = true
+optimizer_runs = 200
+```
+
+---
+
+## Hardhat Setup
+
+### hardhat.config.ts
+```typescript
+import { HardhatUserConfig } from "hardhat/config";
+import "@nomicfoundation/hardhat-toolbox-viem";
+
+const config: HardhatUserConfig = {
+  solidity: {
+    version: "0.8.30",
+    settings: {
+      evmVersion: "cancun",
+      optimizer: { enabled: true, runs: 200 },
+    },
+  },
+  networks: {
+    hardhat: {},
+    anvil: {
+      url: "http://localhost:8545",
+      chainId: 31337,
+    },
+    baseSepolia: {
+      url: process.env.BASE_SEPOLIA_RPC_URL || "https://sepolia.base.org",
+      accounts: process.env.PRIVATE_KEY_BASE_SEPOLIA
+        ? [process.env.PRIVATE_KEY_BASE_SEPOLIA]
+        : [],
+    },
+  },
+};
+
+export default config;
+```
+
+---
+
+## Local Development (Docker)
+
+Both Foundry and Hardhat templates use the same Docker setup:
+
+### docker-compose.yaml
+```yaml
+services:
+  anvil:
+    image: inconetwork/local-node-anvil-testnet:v0.7.10
+    ports:
+      - "8545:8545"
+
+  covalidator:
+    image: inconetwork/local-node-covalidator-testnet:v0.7.10
+    depends_on:
+      - anvil
+    ports:
+      - "50055:50055"
+```
+
+### Commands
+```bash
+# Start local node + covalidator
+docker compose up -d
+
+# Stop
+docker compose down
+
+# Check logs
+docker compose logs -f
+```
+
+- Anvil node: `http://localhost:8545` (chain ID: 31337)
+- Covalidator: `localhost:50055`
+
+### Default Anvil Credentials
+```
+PRIVATE_KEY=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
+SEED_PHRASE="test test test test test test test test test test test junk"
+```
+
+---
+
+## Testnet Deployment (Base Sepolia)
+
+### Environment Variables
+```bash
+# .env
+PRIVATE_KEY_BASE_SEPOLIA=0x...your_key...
+BASE_SEPOLIA_RPC_URL=https://sepolia.base.org
+```
+
+### Foundry Deploy
+```bash
+forge script script/Deploy.s.sol --rpc-url $BASE_SEPOLIA_RPC_URL --broadcast --private-key $PRIVATE_KEY_BASE_SEPOLIA
+```
+
+### Hardhat Deploy (with Ignition)
+```bash
+npx hardhat ignition deploy ignition/modules/Deploy.ts --network baseSepolia
+```
+
+### Frontend Environment
+```bash
+# frontend/.env.local
+NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID=your_id
+NEXT_PUBLIC_CONFLOTTERY_ADDRESS=0x...deployed_address...
+```
+
+---
+
+## Foundry Testing
+
+Foundry tests use `IncoTest` which mocks the entire Inco infrastructure locally - NO Docker required.
+
+```solidity
+import {IncoTest} from "@inco/lightning/src/test/IncoTest.sol";
+import {inco, euint256, e} from "@inco/lightning/src/Lib.sol";
+import {GWEI} from "@inco/lightning/src/shared/TypeUtils.sol";
+
+contract MyTest is IncoTest {
+    function setUp() public override {
+        super.setUp(); // REQUIRED: deploys mocked Inco
+        // ... deploy your contracts
+        vm.deal(address(this), inco.getFee());
+    }
+
+    function testBasic() public {
+        // Create encrypted input for testing
+        bytes memory encryptedAmount = fakePrepareEuint256Ciphertext(
+            100 * GWEI,  // plaintext value
+            alice,       // who created it
+            address(myContract) // target contract
+        );
+
+        // Call contract with fee
+        vm.deal(alice, inco.getFee());
+        vm.prank(alice);
+        myContract.deposit{value: inco.getFee()}(encryptedAmount);
+
+        // Process all pending encrypted operations
+        processAllOperations();
+
+        // Read and decrypt values for assertions
+        uint256 balance = getUint256Value(myContract.balanceOf(alice));
+        assertEq(balance, 100 * GWEI);
+
+        bool flag = getBoolValue(myContract.someFlag());
+        assertTrue(flag);
+    }
+
+    // Test attestation flow
+    function testAttestation() public {
+        // Get the handle
+        euint256 handle = myContract.someEncryptedValue();
+
+        // Create mock attestation
+        (DecryptionAttestation memory attestation, bytes[] memory sigs)
+            = getDecryptionAttestation(alice, handle);
+
+        // Submit on-chain
+        vm.prank(alice);
+        myContract.submitDecryption(attestation, sigs);
+    }
+}
+```
+
+### Key IncoTest Cheatcodes
+
+| Function | Description |
+|----------|-------------|
+| `processAllOperations()` | Process all pending encrypted operations |
+| `fakePrepareEuint256Ciphertext(value, sender, contract)` | Create test ciphertext |
+| `getUint256Value(euint256)` | Decrypt euint256 for assertions |
+| `getBoolValue(ebool)` | Decrypt ebool for assertions |
+| `getDecryptionAttestation(user, handle)` | Create mock attestation + signatures |
+
+Run tests:
+```bash
+forge test -vvv
+```
+
+---
+
+## Hardhat Testing
+
+Hardhat tests use the real Lightning SDK and require Docker for the local node + covalidator.
+
+```typescript
+import { expect } from "chai";
+import hre from "hardhat";
+import { Lightning } from "@inco/js/lite";
+import { handleTypes } from "@inco/js";
+
+describe("MyContract", function () {
+  let contract: any;
+  let zap: any;
+
+  before(async function () {
+    // Initialize Lightning SDK
+    const chainId = hre.network.config.chainId;
+    if (chainId === 31337) {
+      zap = await Lightning.localNode();
+    } else {
+      zap = await Lightning.latest("testnet", 84532);
+    }
+
+    // Deploy contract
+    contract = await hre.viem.deployContract("MyContract", [], {
+      value: await getFee(),
+    });
+  });
+
+  it("should encrypt and deposit", async function () {
+    const [deployer] = await hre.viem.getWalletClients();
+
+    // Encrypt value
+    const encrypted = await zap.encrypt(100n * 10n ** 9n, {
+      accountAddress: deployer.account.address,
+      dappAddress: contract.address,
+      handleType: handleTypes.euint256,
+    });
+
+    const fee = await getFee();
+    await contract.write.deposit([encrypted], { value: fee });
+
+    // Wait for covalidator to process
+    await new Promise(resolve => setTimeout(resolve, 3000));
+  });
+
+  async function getFee() {
+    const publicClient = await hre.viem.getPublicClient();
+    return await publicClient.readContract({
+      address: zap.executorAddress,
+      abi: [{ inputs: [], name: "getFee", outputs: [{ type: "uint256" }], stateMutability: "view", type: "function" }],
+      functionName: "getFee",
+    });
+  }
+});
+```
+
+### Decrypt with Retry (Covalidator Latency)
+
+```typescript
+async function decryptValue(walletClient: any, handle: string, maxRetries = 10) {
+  const zap = await getConfig();
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      const results = await zap.attestedDecrypt(walletClient, [handle]);
+      return results[0].plaintext.value;
+    } catch (e) {
+      if (i === maxRetries - 1) throw e;
+      await new Promise(r => setTimeout(r, 3000));
+    }
+  }
+}
+```
+
+Run tests:
+```bash
+# Start local node first
+docker compose up -d
+
+# Run against local node
+npx hardhat test --network anvil
+
+# Run against testnet
+npx hardhat test --network baseSepolia
+```
+
+---
+
+## Scaffolding with create-inco-app
+
+```bash
+# Interactive
+npx create-inco-app@latest my-app
+
+# Non-interactive
+npx create-inco-app@latest my-app \
+  --wallet rainbowkit \
+  --framework hardhat \
+  --chain evm \
+  --yes
+
+# Wallet options: rainbowkit, privy, dynamic, reown, para
+# Framework options: hardhat, foundry
+```
+
+Creates a monorepo with `contracts/` and `frontend/` workspaces.
