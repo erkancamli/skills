@@ -26,6 +26,15 @@ Build confidential smart contracts on EVM chains. Inco uses TEE-based confidenti
 2. **Always pay the fee** via `msg.value >= inco.getFee()` for every `newEuint256`/`newEbool`/`newEaddress` call or wherever consuming a bytes calldata ciphertext
 3. **Never use `if/else` with encrypted conditions** - use `condition.select(ifTrue, ifFalse)` instead
 
+### Red Flags — STOP if you catch yourself thinking:
+
+| Thought | Reality |
+|---------|---------|
+| "I'll add `allowThis()` in a cleanup pass" | Access is lost **permanently** once the tx lands. Add it on the line after every encrypted store. |
+| "This encrypted condition is simple — `if/else` is fine" | An `ebool` is a handle, not a bool. Branching on it is broken code. Use `.select()`, no exceptions. |
+| "Fee handling can come later" | Every ciphertext ingest and `rand`/`shuffle` call reverts unfunded. Decide user-pays vs contract-sponsored before writing the function. |
+| "The validation checklist is overkill for this small contract" | Small contracts lose handles too. Run the checklist before every deploy. |
+
 ## Architecture (30-second overview)
 
 ```
@@ -89,6 +98,8 @@ const plaintext = results[0].plaintext.value;
 ## Building a confidential game?
 
 Designing a hidden-information game (casino/provably-fair, cards, board, sealed auction, social deduction, fog-of-war, word/code guessing)? The base API on this page still applies — but start at **[references/games/overview.md](references/games/overview.md)**: it has the decision tree (what's secret, when does it reveal), the archetype catalog, the cross-cutting moves, the two settlement models, and the frontend loop. Load only the games references the task needs.
+
+**Design before code (RIGID):** do NOT write any Solidity until you have answered the decision tree — *what is secret, from whom, and when does it reveal*. Code written before those answers bakes in the wrong privacy boundary and gets rewritten. "The game is simple, I'll design as I go" is the red flag — simple games still leak through event logs, public state, and reveal timing.
 
 ## Core Concepts
 

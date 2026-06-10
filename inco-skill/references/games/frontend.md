@@ -1,6 +1,6 @@
 # Frontend: the confidential-game UI loop
 
-How a confidential game's UI drives play **without trusting a server** to tell it what's hidden. The frontend sends the move, pulls the result straight from the chain, and paints it — running one of **two** core loops, public-reveal (Loop A) or private-decrypt (Loop B), chosen by who is allowed to see the result (section 1 covers both). Sections 2–4 (cached attestation, one-popup UX, and the allowance voucher for private per-player decrypts) apply to games with hidden state; section 5 (multiplier parity) is wager-flavored, but the *parity principle* — never show a number the contract won't honor — is general.
+How a confidential game's UI drives play **without trusting a server** to tell it what's hidden. The frontend sends the move, pulls the result straight from the chain, and paints it — running one of **two** core loops, public-reveal (Loop A) or private-decrypt (Loop B), chosen by who is allowed to see the result (section 1 covers both). Sections 2–4 (cached attestation, one-popup UX, and the allowance voucher for private per-player decrypts) apply to games with hidden state; section 5 (multiplier parity) is wager-flavored, but the *parity principle* — never show a number the contract won't honor — is general. Sections 7–8 are the experience layer (staging the reveal, naming the async phases); §9 collects everything into a ship checklist.
 
 Base SDK setup, `zap.encrypt`, and the `attestedReveal` vs `attestedDecrypt` distinction live in the [JS SDK reference](../js-sdk-reference.md). Inco is **TEE-based, not FHE** — a public `e.reveal()` value is pulled with a covalidator **attestation**, not a zk proof. The contract side is [settlement-and-math.md](settlement-and-math.md).
 
@@ -230,3 +230,70 @@ The delay sequence is `200, 300, 450, 675, 1012, …` ms (×1.5 each step), so a
 - **Don't hand-roll polling.** Pass the backoff config to the SDK call; a bespoke loop will be both laggier and more fragile than the SDK's.
 - **Don't set the first delay to zero or the retry count to a handful.** A 0 ms first attempt hammers the covalidator on the cold path; too few retries gives up before a backed-up covalidator recovers. The shipped values (`200 ms` base, `1.5×`, `28` retries) are tuned for "instant when ready, patient when not."
 - **Share one policy.** Import the same `REVEAL_BACKOFF` everywhere rather than sprinkling ad-hoc configs, so reveal behavior is uniform across the app.
+
+---
+
+## 7. Design the reveal
+
+**Goal.** The covalidator round-trip after each move (§6: ~200 ms fast path, seconds on the slow one) feels like part of the game, not lag — and the game looks like *its genre*, not a generic dApp.
+
+**Naïve approach & why it breaks.** Treat the reveal latency as a purely technical problem: a spinner on the board, a "Loading…" toast, all styled with the default-font, purple-gradient dashboard kit every dApp ships. The wait reads as jank, the game reads as a form — and the one moment players actually stare at ("did I hit the bomb?") gets the least design attention in the app.
+
+**The move.** Spend the animation budget on the reveal window, and commit to one aesthetic direction drawn from the game's genre.
+
+- **Time anticipation to the backoff.** The first attestation attempt lands at ~200 ms (§6). Play an anticipation animation that covers that window — the tile trembles, the card starts its flip, the wheel spins — and resolve it into the result the moment `attestedReveal` returns. The fast path feels seamless; the slow path stays *in fiction* (keep looping the anticipation, never degrade to a spinner).
+- **Stage multi-handle reveals.** `retryReveal([hitHandle, accumHandle])` returns both handles together (§1), but nothing forces you to paint them together: land the hit first, beat, then count the accumulator/multiplier up. Sequencing one round-trip into beats is free drama.
+- **Genre-true aesthetics.** Casino → felt, neon, brass; fog-of-war → darkness and lantern light; social deduction → dossiers and redaction bars. Pick one direction and execute it everywhere; avoid the generic-dApp look (default font stack, purple-on-white gradients, emoji as icons).
+
+**Why it works.** The latency exists either way; animation is the one tool that converts it from perceived jank into perceived suspense — and suspense *is the product* in a hidden-information game. The reveal is also the only moment the player is guaranteed to be watching, so polish concentrated there beats polish spread across the chrome.
+
+**Pitfalls.**
+- **Animation may outlast the data, but never the input lock.** Unlock the next move when the attestation lands (§3's in-flight gate), not when the animation finishes — polish must not add real latency.
+- **Respect `prefers-reduced-motion`.** Resolve straight to the result state for players who ask for it — a static change, not a spinner.
+
+---
+
+## 8. Async-phase UX
+
+**Goal.** The player always knows *which* stage their move is in. One click crosses up to four async phases — local encrypt, wallet confirm, tx mining, covalidator reveal — with wildly different wait profiles and failure modes.
+
+**Naïve approach & why it breaks.** One `isLoading` boolean and a generic "Processing…" label. The player can't tell a 2-second covalidator poll from a wallet popup stuck behind a window, so they refresh mid-move; and a generic error toast for a fee revert tells them nothing they can act on.
+
+**The move.** Model the move as a phase enum, not a boolean, and bind every piece of feedback to it.
+
+```tsx
+type MovePhase = 'idle' | 'encrypting' | 'confirm-in-wallet' | 'mining' | 'revealing';
+// per-phase status copy: "Encrypting locally…" / "Confirm in wallet" / "Submitting move…" / "Revealing…"
+```
+
+- **Disable the action surface for the whole pipeline** (§3's in-flight gate) and show the phase *on* the disabled control, not in a far-away toast.
+- **Reserve layout space for the result.** The revealed value (multiplier, card, hit/miss) pops in when the attestation lands — give it a fixed-size slot from the start so the board never reflows under the player's cursor.
+- **Errors land next to the action, named by phase.** Fee revert → on the move button ("Fee not covered — top up"); reveal timeout after §6's backoff is exhausted → on the affected tile with a retry affordance; wallet rejection → reset quietly to `idle` (the player chose it; it's not an error).
+- **Roll back optimistic paint on failure in any phase** (§3 pitfall) — the board returns to its pre-move state, never a half-painted one.
+
+**Why it works.** The phases differ by orders of magnitude (encrypt: ms; wallet: human-speed; mining: chain-speed; reveal: §6's backoff) — one spinner averages them into "is it broken?", while named phases keep every wait legible. Reserved slots and adjacent errors are the standard async-UI rules (no content jumping, feedback near the problem) applied to the one pipeline every Inco game has.
+
+**Pitfalls.**
+- **Don't surface "revealing" as an error too early.** The §6 backoff deliberately tolerates a slow covalidator for minutes; only an *exhausted* backoff is a failure.
+- **`confirm-in-wallet` is the only phase needing the player's action** — make it visually distinct and point at the wallet, or the player stares at a frozen board while the popup waits behind it.
+
+---
+
+## 9. Ship checklist
+
+Before shipping a confidential-game frontend, verify every line (for a real release, create a todo per item):
+
+- [ ] **One popup per action** — the move tx is the only signature; reveals run in the background (`attestedReveal`, §3) or through a session voucher (`attestedDecryptWithVoucher`, §4)
+- [ ] Loop matches audience: result is public / the contract settles on it → Loop A; acting player only → Loop B (§1)
+- [ ] All handles from one move revealed in **one** `retryReveal([...])` call (§1)
+- [ ] Revealed handles decoded from the receipt's event logs, never reconstructed client-side (§1)
+- [ ] SDK pre-warmed on mount (`getZap()` in a mount effect) (§1)
+- [ ] Attestation cache refreshed on every move, **reset between games**, settlement gated on a present cache (§2)
+- [ ] Concurrent moves blocked while a reveal is in flight (§3)
+- [ ] Optimistic paint rolls back on tx/reveal failure (§3, §8)
+- [ ] Voucher has a deliberate expiry and is revoked on logout / leave-table (`updateActiveVouchersSessionNonce`) (§4)
+- [ ] Every displayed number mirrors on-chain math — `bigint`, same `SCALE`, pinned by a cross-implementation test (§5)
+- [ ] One shared backoff policy imported everywhere (§6)
+- [ ] Reveal animation covers the backoff window; `prefers-reduced-motion` respected (§7)
+- [ ] Genre-true direction; no emoji icons; `cursor-pointer` + hover feedback on actionable tiles; ≥44 px touch targets (§7)
+- [ ] Move phases named in the UI; errors adjacent to the action; result slots pre-reserved (§8)
