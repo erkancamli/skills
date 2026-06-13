@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// REFERENCE EXAMPLE — inco-skill (games layer). Confidential Hangman.
+// REFERENCE EXAMPLE — Inco Lightning skill (games layer). Confidential Hangman.
 // A MODEL B archetype (archetype 8, "hidden word / guess-and-match"): the per-guess
 // result is private to the player and the CLIENT enforces win/lose — NO on-chain
 // settlement. Demonstrates: word packed into one euint256 then unpacked with e.shr/e.and;

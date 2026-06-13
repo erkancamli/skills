@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// REFERENCE EXAMPLE — inco-skill (games layer). Mines payout math (pure library).
+// REFERENCE EXAMPLE — Inco Lightning skill (games layer). Mines payout math (pure library).
 // Hypergeometric multiplier + house edge + max-payout, all xSCALE(1e6). Single source
 // of truth so cash-out and factory reservation can't drift; mirror it byte-identically
 // in TS for UI multiplier parity. See references/games/settlement-and-math.md (section 2).

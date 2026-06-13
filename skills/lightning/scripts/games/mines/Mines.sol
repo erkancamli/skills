@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// REFERENCE EXAMPLE — inco-skill (games layer). Confidential "Mines" (Stake-style).
+// REFERENCE EXAMPLE — Inco Lightning skill (games layer). Confidential "Mines" (Stake-style).
 // The canonical MODEL A archetype: a wager game settled ON-CHAIN via attestation.
 // Demonstrates: encrypted board via elist shuffle; per-pick getEbool; the sticky
 // e.or accumulator ("ever hit a bomb"); attestation settlement in cashOut/concedeLoss

@@ -1,0 +1,14 @@
+{
+  "name": "inco",
+  "owner": {
+    "name": "Inco",
+    "url": "https://github.com/Inco-fhevm"
+  },
+  "plugins": [
+    {
+      "name": "inco",
+      "source": "./",
+      "description": "Confidential smart contracts, dApps, and games on Inco Lightning (TEE-based confidential EVM). Includes the Inco Lightning skill."
+    }
+  ]
+}

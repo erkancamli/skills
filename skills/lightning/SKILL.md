@@ -1,5 +1,5 @@
 ---
-name: inco-skill
+name: lightning
 description: >
   Build confidential smart contracts and dApps on EVM with Inco's TEE-based confidential computing:
   encrypted types (euint256/ebool/eaddress), encrypted ops (add/sub/mul/select/eq/rand), access control

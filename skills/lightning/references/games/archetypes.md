@@ -108,7 +108,7 @@ euint256 card = e.getEuint256(deck, uint16(topIndex));   // index is uint16
 e.allow(card, player);   // selective reveal: ONLY this player can decrypt it
 ```
 
-The player decrypts client-side via the SDK's attested-*decrypt* flow (a private handle for an authorized address — needs the wallet to sign, unlike a public reveal); see inco-skill's JS SDK reference. Note the grant is **per handle** and **one-way**: re-`allow` any new handle you derive, and never `allow` a card to the wrong address — that's a one-line leak. *(Nice-to-have UX: a once-per-session [allowance voucher](frontend.md#4-private-per-player-decryption-the-allowance-voucher) makes peeking your hand popup-free instead of a wallet prompt per look.)*
+The player decrypts client-side via the SDK's attested-*decrypt* flow (a private handle for an authorized address — needs the wallet to sign, unlike a public reveal); see this skill's JS SDK reference. Note the grant is **per handle** and **one-way**: re-`allow` any new handle you derive, and never `allow` a card to the wrong address — that's a one-line leak. *(Nice-to-have UX: a once-per-session [allowance voucher](frontend.md#4-private-per-player-decryption-the-allowance-voucher) makes peeking your hand popup-free instead of a wallet prompt per look.)*
 
 **Fit & alternatives.** Strong fit, and dramatically simpler than mental poker — no n-out-of-n round, no last-staller liveness trap — at the cost of trusting the TEE instead of threshold cryptography. If your game's whole premise is *trustless* dealing with no trusted hardware, mental poker / zk is the trade you'd make; otherwise Inco's per-player `e.allow` is the natural home for live, mutating hands. See [choosing-your-approach.md](choosing-your-approach.md).
 
@@ -159,7 +159,7 @@ e.allow(highestBid, address(this));       // keep both handles across txs (patte
 e.allow(encryptedWinner, address(this));  // reveal only at settlement, never the running max
 ```
 
-Then [reveal](patterns.md#reveal-discipline) **only the result** at settlement — the winner and the clearing price — never the losing bids, and settle over it with the Model A [attestation flow](settlement-and-math.md#1-attestation-based-settlement-no-on-chain-callback). Keeping a *continuously updated* highest bid in the clear would leak the running high (inco-skill flags exactly this), so the running max stays encrypted until the end.
+Then [reveal](patterns.md#reveal-discipline) **only the result** at settlement — the winner and the clearing price — never the losing bids, and settle over it with the Model A [attestation flow](settlement-and-math.md#1-attestation-based-settlement-no-on-chain-callback). Keeping a *continuously updated* highest bid in the clear would leak the running high (the base reference flags exactly this), so the running max stays encrypted until the end.
 
 **Fit & alternatives.** Strong fit — Inco removes commit-reveal's two-phase ceremony and, crucially, the **last-revealer abort**: there's no second reveal tx for anyone to withhold, because the bids were encrypted live and only the *outcome* is opened, once, by the settlement call. If a single bid that opens exactly once is all you need and a second tx is acceptable, commit-reveal is a cheaper start; the moment you want no-abort sealed bidding, Inco wins. See [choosing-your-approach.md](choosing-your-approach.md).
 

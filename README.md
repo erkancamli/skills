@@ -1,8 +1,8 @@
-# inco-skill
+# Inco for AI coding agents
 
-A [Claude Code](https://claude.com/claude-code) skill for building **confidential games and dApps on Inco** — the TEE-based confidential layer for EVM. It knows Inco Lightning (the Solidity lib + `@inco/lightning-js` SDK, v1) cold, and it brings *game-design sense*: it helps you decide **what must stay private**, **which Inco feature to reach for**, and **how to wire it end-to-end**.
+An **agent skill** for building **confidential smart contracts, dApps, and games on Inco** — the TEE-based confidential layer for EVM — that works in **Claude Code, Codex, Cursor, and 70+ agents**. The **Inco Lightning** skill knows the Solidity lib + `@inco/lightning-js` SDK (v1) cold, and brings *game-design sense*: it helps you decide **what must stay private**, **which Inco feature to reach for**, and **how to wire it end-to-end**. Future Inco skills ship alongside it.
 
-**[Download inco-skill.zip](https://github.com/Inco-fhevm/skills/raw/main/assets/inco-skill.zip)**
+**[Download the skill (zip)](https://github.com/Inco-fhevm/skills/raw/main/assets/inco-lightning.zip)**
 
 ---
 
@@ -21,18 +21,32 @@ A [Claude Code](https://claude.com/claude-code) skill for building **confidentia
 
 ## Install
 
-Unzip, then drop the folder into your Claude Code skills directory:
+**Any agent — [Vercel `skills`](https://github.com/vercel-labs/skills) CLI (recommended).** Works with Claude Code, Codex, Cursor, Cline + 70 more:
+
+```bash
+npx skills add Inco-fhevm/skills            # discovers & installs the lightning skill
+npx skills add Inco-fhevm/skills -a codex   # …or target a specific agent
+```
+
+**Claude Code — native plugin** (gives the namespaced `/inco:lightning` and the `inco` umbrella for future skills):
+
+```bash
+/plugin marketplace add Inco-fhevm/skills
+/plugin install inco@inco
+```
+
+**Manual** — download the zip above, unzip, and copy the skill folder into your agent's skills directory:
 
 ```bash
 mkdir -p ~/.claude/skills
-cp -R inco-skill ~/.claude/skills/inco-skill
+cp -R lightning ~/.claude/skills/lightning
 ```
 
-_(Or place `inco-skill/` in a project's `.claude/skills/` to scope it to a single repo.)_
+The skill auto-activates from its description, so it kicks in whenever you describe Inco work.
 
 ## Use
 
-Open Claude Code and type **`/inco-skill`** — or just describe what you want and it activates on its own:
+Invoke **`/lightning`** (or **`/inco:lightning`** if you installed via the Claude plugin) — or just describe what you want and it activates on its own:
 
 > *"build a confidential sealed-bid auction on Inco"*
 > *"what should be private in my on-chain poker game?"*
