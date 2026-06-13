@@ -54,7 +54,7 @@ The secret is **mutable live state** that persists across turns; each move reads
 
 Both pin the hidden board as a **static commitment** and prove statements about it with zk.
 
-**Build it on Inco.** The Inco inversion: positions are *mutable encrypted state*, not a frozen commitment. Hold the board as [encrypted-list state](patterns.md#encrypted-list-state) (an elist of `ebool`, or a mapping of `ebool`/`euint`); a shot reads that one cell with `getEbool` and you reveal only its hit/miss under [reveal discipline](patterns.md#reveal-discipline). If the *result* of a shot must stay hidden from some observers (proximity hints that only the shooter should see), grant it with [selective reveal](patterns.md#selective-reveal) instead of a public `e.reveal`. The signature move is identical to archetype 1's per-cell read — `ebool hit = ePreview.getEbool(board, cellIndex)` — so don't re-snippet; the *difference* from Mines is whose grid it is and that placement may itself be a per-player encrypted input.
+**Build it on Inco.** The Inco inversion: positions are *mutable encrypted state*, not a frozen commitment. Hold the board as [encrypted-list state](patterns.md#encrypted-list-state) (an elist of `ebool`, or a mapping of `ebool`/`euint`); a shot reads that one cell with `getEbool` and you reveal only its hit/miss under [reveal discipline](patterns.md#reveal-discipline). If the *result* of a shot must stay hidden from some observers (proximity hints that only the shooter should see), grant it with [selective reveal](patterns.md#selective-reveal) instead of a public `e.reveal`. The signature move is identical to archetype 1's per-cell read — `ebool hit = e.getEbool(board, cellIndex)` — so don't re-snippet; the *difference* from Mines is whose grid it is and that placement may itself be a per-player encrypted input.
 
 > Note: keeping placement itself secret from the contract means accepting each player's board as an encrypted input (`newEbool`/`newEList(..., msg.sender)`) rather than shuffling a known one. A plaintext cell index still reveals *which* cell was shot at (that's usually fine — the shot is public); if even *where* a player aimed must be secret, use the hidden-index elist ops (`getOr`, `sliceLen`) — see [patterns.md](patterns.md#encrypted-list-state) and the base [elist reference](../elist-reference.md).
 
@@ -98,13 +98,13 @@ The secret **persists** and is meant to be visible to a *subset* — its owner, 
 
 **Prior art.** The classic decentralized solution is **mental poker** — how to deal a fair, secret game with no trusted dealer and mutually distrusting players. It's solved with *n-out-of-n threshold encryption*: every player encrypts/shuffles, and a card is unmasked only when **all** players publish their reveal tokens for it. Strong trust-minimization, but heavy — lots of per-card cryptography and rounds, and it's **liveness-sensitive**: one player who stalls (won't publish a reveal token) blocks the whole table.
 
-**Build it on Inco.** Far simpler. [Shuffle an encrypted deck](patterns.md#confidential-randomness) in one op — `ePreview.shuffledRange(1, 53)` gives a shuffled 52-card deck — and hold it as [encrypted-list state](patterns.md#encrypted-list-state). To *deal*, take the next deck element and grant it to its owner with [selective reveal](patterns.md#selective-reveal); only that player can run an attested decrypt on it, and the contract never emits the card. The signature move — dealing a card *is* a per-handle `e.allow` to the recipient:
+**Build it on Inco.** Far simpler. [Shuffle an encrypted deck](patterns.md#confidential-randomness) in one op — `e.shuffledRange(1, 53, ETypes.Uint256)` gives a shuffled 52-card deck — and hold it as [encrypted-list state](patterns.md#encrypted-list-state). To *deal*, take the next deck element and grant it to its owner with [selective reveal](patterns.md#selective-reveal); only that player can run an attested decrypt on it, and the contract never emits the card. The signature move — dealing a card *is* a per-handle `e.allow` to the recipient:
 
 ```solidity
 // `deck` is the shuffled elist; `topIndex` is the public draw position.
 // Reading the element doesn't reveal it — the grant is what makes it visible,
 // and only to `player`. No e.reveal: the card stays opaque to everyone else.
-euint256 card = ePreview.getEuint256(deck, uint16(topIndex));   // index is uint16
+euint256 card = e.getEuint256(deck, uint16(topIndex));   // index is uint16
 e.allow(card, player);   // selective reveal: ONLY this player can decrypt it
 ```
 

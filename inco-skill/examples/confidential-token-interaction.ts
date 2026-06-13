@@ -8,12 +8,12 @@
  * 4. Balance decryption
  *
  * Prerequisites:
- *   npm install @inco/js viem
+ *   npm install @inco/lightning-js@latest viem
  *   Deploy ConfidentialToken.sol first
  */
 
-import { Lightning } from "@inco/js/lite";
-import { handleTypes, supportedChains, type HexString } from "@inco/js";
+import { Lightning } from "@inco/lightning-js/lite";
+import { handleTypes, type HexString } from "@inco/lightning-js";
 import {
   createPublicClient,
   createWalletClient,
@@ -87,14 +87,14 @@ const GET_FEE_ABI = [
     inputs: [],
     name: "getFee",
     outputs: [{ name: "", type: "uint256" }],
-    stateMutability: "view",
+    stateMutability: "pure",
     type: "function",
   },
 ] as const;
 
 // ─── Helpers ────────────────────────────────────────────────
 
-let zap: Awaited<ReturnType<typeof Lightning.latest>>;
+let zap: Awaited<ReturnType<typeof Lightning.baseSepoliaTestnet>>;
 let publicClient: ReturnType<typeof createPublicClient>;
 
 async function getFee(): Promise<bigint> {
@@ -131,15 +131,11 @@ async function decryptBalance(
 
   const handleHex = pad(toHex(handle), { size: 32 }) as HexString;
 
-  for (let i = 0; i < 10; i++) {
-    try {
-      const results = await zap.attestedDecrypt(walletClient as any, [handleHex]);
-      return results[0].plaintext.value as bigint;
-    } catch {
-      await new Promise((r) => setTimeout(r, 3000));
-    }
-  }
-  return null;
+  // Built-in backoff handles covalidator latency — no hand-rolled loop.
+  const results = await zap.attestedDecrypt(walletClient as any, [handleHex], {
+    backoffConfig: { maxRetries: 12, baseDelayInMs: 350, backoffFactor: 1.4 },
+  });
+  return results[0].plaintext.value as bigint;
 }
 
 // ─── Main ───────────────────────────────────────────────────
@@ -163,7 +159,7 @@ async function main() {
     transport: http(),
   });
 
-  zap = await Lightning.latest("testnet", supportedChains.baseSepolia);
+  zap = await Lightning.baseSepoliaTestnet();
   const fee = await getFee();
 
   // ─── 1. Encrypted Mint ────────────────────────────────────

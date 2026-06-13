@@ -3,12 +3,12 @@ name: inco-skill
 description: >
   Build confidential smart contracts and dApps on EVM with Inco's TEE-based confidential computing:
   encrypted types (euint256/ebool/eaddress), encrypted ops (add/sub/mul/select/eq/rand), access control
-  (e.allow), and attestation verification. Use for @inco/lightning Solidity + @inco/js SDK encrypt/decrypt,
+  (e.allow), and attestation verification. Use for @inco/lightning Solidity + @inco/lightning-js SDK encrypt/decrypt,
   Foundry/Hardhat with a local covalidator or Base Sepolia, create-inco-app scaffolding, and confidential
   tokens, auctions, voting, or lottery dApps. Also covers confidential / hidden-information GAMES — deciding
   what stays private and which Inco feature goes where, then building fast: casino, cards, board,
   sealed auction, social deduction, fog-of-war, word/code-guessing.
-  TRIGGER: imports "@inco/lightning" or "@inco/js", mentions Inco, confidential EVM contracts, encrypted
+  TRIGGER: imports "@inco/lightning" or "@inco/lightning-js" (or legacy "@inco/js"), mentions Inco, confidential EVM contracts, encrypted
   types, "what should be private in my game", on-chain poker/mafia/minesweeper/word-guessing, fog of war,
   provably fair.
   NOT for: ZK proofs.
@@ -38,8 +38,8 @@ Build confidential smart contracts on EVM chains. Inco uses TEE-based confidenti
 ## Architecture (30-second overview)
 
 ```
-Frontend (JS SDK @inco/js)     Smart Contract (@inco/lightning)     Covalidator (TEE)
-─────────────────────────      ───────────────────────────────      ──────────────────
+Frontend (@inco/lightning-js)     Smart Contract (@inco/lightning)     Covalidator (TEE)
+─────────────────────────────     ───────────────────────────────      ──────────────────
 zap.encrypt(value) ──────────> newEuint256(bytes, sender)
                                 e.add / e.sub / e.select / ...
                                 e.allow(handle, user)
@@ -75,10 +75,10 @@ contract MyConfidentialContract {
 
 ### 3. Frontend encryption + decryption
 ```typescript
-import { Lightning } from "@inco/js/lite";
-import { handleTypes } from "@inco/js";
+import { Lightning } from "@inco/lightning-js/lite";
+import { handleTypes } from "@inco/lightning-js";
 
-const zap = await Lightning.latest("testnet", 84532); // Base Sepolia
+const zap = await Lightning.baseSepoliaTestnet(); // Base Sepolia (chain 84532)
 
 // Encrypt
 const ct = await zap.encrypt(100n, {
@@ -170,7 +170,7 @@ Before deploying any Inco contract, verify:
 - **Solidity API**: All types, operations, access control, attestation patterns - see [solidity-reference.md](references/solidity-reference.md)
 - **JS SDK**: Encrypt, decrypt, attested compute, session keys, wagmi hooks - see [js-sdk-reference.md](references/js-sdk-reference.md)
 - **Deployment & Testing**: Foundry/Hardhat setup, Docker local node, testnet deploy, IncoTest cheatcodes - see [deployment-testing.md](references/deployment-testing.md)
-- **EList (Preview)**: Encrypted dynamic lists - see [elist-reference.md](references/elist-reference.md)
+- **EList**: Encrypted dynamic lists (graduated into core `@inco/lightning` in v1) - see [elist-reference.md](references/elist-reference.md)
 - **Confidential Games**: the game-design layer — start at [references/games/overview.md](references/games/overview.md)
 
 ## Ready-to-Use Templates
@@ -221,8 +221,7 @@ function transfer(address to, euint256 value) public { ... }
 
 | Package | Version | Purpose |
 |---------|---------|---------|
-| `@inco/lightning` | 0.7.10 | Solidity library |
-| `@inco/js` | 0.7.10 | JavaScript SDK |
-| `@inco/lightning-preview` | 0.7.10 | EList preview |
-| Solidity | 0.8.30 | Compiler version |
+| `@inco/lightning` | latest (v1+) | Solidity library  — install `@latest` |
+| `@inco/lightning-js` | latest (v1+) | JavaScript SDK (renamed from `@inco/js`) — install `@latest` |
+| Solidity | 0.8.30 | Compiler version (0.8.29+ supported) |
 | EVM | cancun | Target EVM version |

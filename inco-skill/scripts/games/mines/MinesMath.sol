@@ -7,7 +7,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.30;
 
-/// @notice Shared, byte-identical multiplier math used by both `Mines3` (for the
+/// @notice Shared, byte-identical multiplier math used by both `Mines` (for the
 /// actual cashout) and `MinesFactory` (for the per-game maxPayout reservation).
 /// Keeping a single source-of-truth prevents the solvency invariant
 /// `winnings <= maxPayout` from being broken by a future drift between two copies.

@@ -1,6 +1,6 @@
 # inco-skill
 
-A [Claude Code](https://claude.com/claude-code) skill for building **confidential games and dApps on Inco** — the TEE-based confidential layer for EVM. It knows Inco Lightning (the Solidity lib + `@inco/js` SDK) cold, and it brings *game-design sense*: it helps you decide **what must stay private**, **which Inco feature to reach for**, and **how to wire it end-to-end**.
+A [Claude Code](https://claude.com/claude-code) skill for building **confidential games and dApps on Inco** — the TEE-based confidential layer for EVM. It knows Inco Lightning (the Solidity lib + `@inco/lightning-js` SDK, v1) cold, and it brings *game-design sense*: it helps you decide **what must stay private**, **which Inco feature to reach for**, and **how to wire it end-to-end**.
 
 **[Download inco-skill.zip](https://github.com/Inco-fhevm/skills/raw/main/assets/inco-skill.zip)**
 
@@ -15,7 +15,7 @@ A [Claude Code](https://claude.com/claude-code) skill for building **confidentia
 
 ## What's inside
 
-- **Inco Lightning reference** — Solidity API (encrypted types, `e.allow`, attestation), the `@inco/js` SDK, encrypted lists, and Foundry/Hardhat + local-covalidator setup.
+- **Inco Lightning reference** — Solidity API (encrypted types, `e.allow`, attestation), the `@inco/lightning-js` SDK, encrypted lists, and Foundry/Hardhat + local-covalidator setup.
 - **Game-design layer** — the decision tree, archetype catalog, cross-cutting patterns (confidential randomness, sticky accumulator, equality-match, encrypted packing…), the two settlement models, and the frontend loop.
 - **Worked contracts to learn from** — a full Stake-style **Mines** (wager, on-chain settlement), a **Hangman** word-guesser (non-wager, client-side), and a **confidential ERC-20** token.
 
@@ -43,4 +43,4 @@ Start a fresh project with `npx create-inco-app`, or ask the skill to scaffold t
 ## Good to know
 
 - **Inco is TEE-based, not FHE.** "Encrypted" means decrypt-in-TEE; "provably fair" means a covalidator attestation, not a zk proof. The skill is honest about this throughout.
-- Pairs with the Inco toolchain: `@inco/lightning` (Solidity) + `@inco/js` (frontend), scaffolded via `create-inco-app`.
+- Pairs with the Inco toolchain: `@inco/lightning` (Solidity) + `@inco/lightning-js` (frontend), both at v1, scaffolded via `create-inco-app`.

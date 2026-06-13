@@ -11,8 +11,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.30;
 
-import {euint256, ebool, e, inco} from "@inco/lightning/src/Lib.sol";
-import {ePreview, elist, ETypes} from "@inco/lightning-preview/src/Preview.Lib.sol";
+import {ebool, e, inco, elist, ETypes} from "@inco/lightning/src/Lib.sol";
 import {DecryptionAttestation} from "@inco/lightning/src/lightning-parts/DecryptionAttester.types.sol";
 import {asBool} from "@inco/lightning/src/shared/TypeUtils.sol";
 import {MinesMath} from "./MinesMath.sol";
@@ -137,10 +136,10 @@ contract Mines {
             safeHandles[i] = falseHandle;
         }
 
-        elist bombs    = ePreview.newEList(bombHandles, ETypes.Bool);
-        elist safes    = ePreview.newEList(safeHandles, ETypes.Bool);
-        elist combined = ePreview.concat(bombs, safes);
-        board = ePreview.shuffle(combined);
+        elist bombs    = e.newEList(bombHandles, ETypes.Bool);
+        elist safes    = e.newEList(safeHandles, ETypes.Bool);
+        elist combined = e.concat(bombs, safes);
+        board = e.shuffle(combined);
         inco.allow(elist.unwrap(board), address(this));
 
         // Allow contract cross-tx access to the accumulator (we'll OR into it
@@ -173,7 +172,7 @@ contract Mines {
 
         // `hit` is a memory-only handle used within this tx — Inco grants
         // transient access automatically; no e.allow needed.
-        ebool hit = ePreview.getEbool(board, uint16(pos));
+        ebool hit = e.getEbool(board, uint16(pos));
         e.reveal(hit);
 
         // `everHitBomb` IS stored across txs (we OR into it every pick), so

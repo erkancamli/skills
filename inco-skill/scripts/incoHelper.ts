@@ -4,7 +4,7 @@
  * Drop-in utility for frontend projects integrating with Inco confidential contracts.
  * Provides: encryption, decryption with retry, fee fetching, and attestation formatting.
  *
- * Dependencies: @inco/js, viem
+ * Dependencies: @inco/lightning-js, viem
  *
  * Usage:
  *   import { initInco, encryptValue, decryptValue, getFee, formatAttestation } from "./incoHelper";
@@ -12,13 +12,13 @@
  *   const ciphertext = await encryptValue(zap, { value: 100n, ... });
  */
 
-import { Lightning } from "@inco/js/lite";
-import { handleTypes, type HexString } from "@inco/js";
+import { Lightning } from "@inco/lightning-js/lite";
+import { handleTypes, type HexString } from "@inco/lightning-js";
 import { type PublicClient, type WalletClient, pad, toHex, bytesToHex } from "viem";
 
 // ─── Types ──────────────────────────────────────────────────
 
-export type IncoInstance = Awaited<ReturnType<typeof Lightning.latest>>;
+export type IncoInstance = Awaited<ReturnType<typeof Lightning.baseSepoliaTestnet>>;
 
 export interface EncryptParams {
   value: bigint | boolean;
@@ -36,22 +36,33 @@ export interface DecryptResult {
 
 // ─── Initialization ─────────────────────────────────────────
 
-/** Initialize Lightning SDK. Call once at app startup. */
+/**
+ * Initialize Lightning SDK. Call once at app startup.
+ *
+ * v1 prefers explicit network factories over `Lightning.latest(...)` (which still works).
+ * Inco is live on Base Sepolia and Base mainnet:
+ *   - "local"   → Lightning.localNode("mainnet")  (anvil + covalidator docker, mainnet pepper)
+ *   - chain 84532 → Lightning.baseSepoliaTestnet()  (Base Sepolia)
+ *   - chain 8453  → Lightning.baseMainnet()         (Base mainnet)
+ */
 export async function initInco(
-  mode: "testnet" | "local",
+  mode: "testnet" | "mainnet" | "local",
   chainId: number = 84532
 ): Promise<IncoInstance> {
   if (mode === "local") {
-    return await Lightning.localNode();
+    return await Lightning.localNode("mainnet");
   }
-  return await Lightning.latest("testnet", chainId);
+  if (mode === "mainnet" || chainId === 8453) {
+    return await Lightning.baseMainnet();
+  }
+  return await Lightning.baseSepoliaTestnet();
 }
 
 // Singleton pattern for React hooks
 let _zapPromise: Promise<IncoInstance> | null = null;
 
 export function getZapSingleton(
-  mode: "testnet" | "local" = "testnet",
+  mode: "testnet" | "mainnet" | "local" = "testnet",
   chainId: number = 84532
 ): Promise<IncoInstance> {
   if (!_zapPromise) {
@@ -92,7 +103,7 @@ const GET_FEE_ABI = [
     inputs: [],
     name: "getFee",
     outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
-    stateMutability: "view",
+    stateMutability: "pure",
     type: "function",
   },
 ] as const;
@@ -111,57 +122,44 @@ export async function getFee(
 
 // ─── Decryption ─────────────────────────────────────────────
 
-/** Decrypt a handle with retry logic for covalidator latency. */
+/** Decrypt handles using the SDK's built-in backoff for covalidator latency. */
 export async function decryptValue(
   zap: IncoInstance,
   walletClient: WalletClient,
   handles: HexString[],
-  maxRetries: number = 10,
-  retryDelayMs: number = 3000
+  backoffConfig = { maxRetries: 12, baseDelayInMs: 350, backoffFactor: 1.4 }
 ): Promise<DecryptResult[]> {
-  let lastError: Error | undefined;
+  const results = await zap.attestedDecrypt(walletClient, handles, { backoffConfig });
 
-  for (let attempt = 0; attempt < maxRetries; attempt++) {
-    try {
-      const results = await zap.attestedDecrypt(walletClient, handles);
-
-      return results.map((r: any) => ({
-        handle: r.handle,
-        value: r.plaintext.value,
-        signatures: r.covalidatorSignatures.map((sig: Uint8Array) =>
-          bytesToHex(sig)
+  return results.map((r: any) => ({
+    handle: r.handle,
+    value: r.plaintext.value,
+    signatures: r.covalidatorSignatures.map((sig: Uint8Array) =>
+      bytesToHex(sig)
+    ),
+    attestation: {
+      handle: r.handle,
+      value: pad(
+        toHex(
+          typeof r.plaintext.value === "boolean"
+            ? r.plaintext.value
+              ? 1
+              : 0
+            : r.plaintext.value
         ),
-        attestation: {
-          handle: r.handle,
-          value: pad(
-            toHex(
-              typeof r.plaintext.value === "boolean"
-                ? r.plaintext.value
-                  ? 1
-                  : 0
-                : r.plaintext.value
-            ),
-            { size: 32 }
-          ),
-        },
-      }));
-    } catch (e: any) {
-      lastError = e;
-      if (attempt < maxRetries - 1) {
-        await new Promise((resolve) => setTimeout(resolve, retryDelayMs));
-      }
-    }
-  }
-
-  throw lastError ?? new Error("Decryption failed after retries");
+        { size: 32 }
+      ),
+    },
+  }));
 }
 
 /** Decrypt publicly revealed handles (no wallet signature needed). */
 export async function revealValue(
   zap: IncoInstance,
-  handles: HexString[]
+  handles: HexString[],
+  backoffConfig = { maxRetries: 12, baseDelayInMs: 350, backoffFactor: 1.4 }
 ): Promise<DecryptResult[]> {
-  const results = await zap.attestedReveal(handles);
+  const results = await zap.attestedReveal(handles, { backoffConfig });
 
   return results.map((r: any) => ({
     handle: r.handle,

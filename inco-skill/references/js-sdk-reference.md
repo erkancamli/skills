@@ -15,14 +15,22 @@
 
 ---
 
+> **v1 (`@inco/lightning-js`).** The JS SDK was renamed from `@inco/js` → **`@inco/lightning-js`** at v1.0.0. Key API changes in this reference:
+> - **Init:** prefer the explicit network factories `Lightning.baseSepoliaTestnet()` / `Lightning.baseMainnet()` (Inco's two live networks) over `Lightning.latest("testnet", chainId)` (which still works); `Lightning.localNode()` → `Lightning.localNode("mainnet")` (pass the network "pepper").
+> - **Session keys:** `generateSecp256k1Keypair()` → **`await generateXwingKeypair()`** (now async, post-quantum X‑Wing).
+> - **Attested methods:** reencryption args moved from positional into an options object `{ reencryptPubKey, reencryptKeypair }`.
+> - **Backoff:** `{ maxRetries, initialDelay, maxDelay }` → `{ backoffConfig: { maxRetries, baseDelayInMs, backoffFactor } }`.
+>
+> Migrating an `@inco/js` project? See <https://docs.inco.org/js-sdk/migration-v1>.
+
 ## Installation
 
 ```bash
-npm install @inco/js
+npm install @inco/lightning-js@latest
 # or
-yarn add @inco/js
+yarn add @inco/lightning-js@latest
 # or
-bun add @inco/js
+bun add @inco/lightning-js@latest
 ```
 
 Currently tested with Webpack and Next.js.
@@ -32,17 +40,25 @@ Currently tested with Webpack and Next.js.
 ## Initialization
 
 ```typescript
-import { Lightning } from "@inco/js/lite";
-import { handleTypes, getViemChain, supportedChains } from "@inco/js";
+import { Lightning } from "@inco/lightning-js/lite";
+import { handleTypes } from "@inco/lightning-js";
 
-// Testnet (Base Sepolia)
-const zap = await Lightning.latest("testnet", supportedChains.baseSepolia);
-// or with chain ID directly:
-const zap = await Lightning.latest("testnet", 84532);
+// Base Sepolia testnet (chain 84532) — explicit network factory
+const zap = await Lightning.baseSepoliaTestnet();
 
-// Local development node
-const zap = await Lightning.localNode();
+// Base mainnet (real ETH)
+const zap = await Lightning.baseMainnet();
+
+// Optionally pass your own RPC endpoint(s) — multiple gives automatic fallback
+const zap = await Lightning.baseSepoliaTestnet({
+  hostChainRpcUrls: ["https://primary.rpc", "https://fallback.rpc"],
+});
+
+// Local development node (anvil + covalidator docker) — pass the network "pepper"
+const zap = await Lightning.localNode("mainnet");
 ```
+
+Pick the factory by chain id: `31337` → `localNode("mainnet")`, `84532` → `baseSepoliaTestnet()` (Base Sepolia), `8453` → `baseMainnet()` (Base mainnet) — Inco's two live networks.
 
 ---
 
@@ -86,7 +102,7 @@ The returned `ciphertext` is a `HexString` passed directly to contract functions
 Decrypt a handle for an authorized user. Requires `e.allow()` on-chain for the requesting address.
 
 ```typescript
-import { type HexString } from "@inco/js";
+import { type HexString } from "@inco/lightning-js";
 
 // Single handle
 const results = await zap.attestedDecrypt(
@@ -150,7 +166,7 @@ const plaintext = results[0].plaintext.value;
 Perform computation off-chain on an encrypted handle and get a signed result. Avoids unnecessary transactions.
 
 ```typescript
-import { AttestedComputeSupportedOps } from "@inco/js/lite";
+import { AttestedComputeSupportedOps } from "@inco/lightning-js/lite";
 
 // creditScore >= 700 ?
 const result = await zap.attestedCompute(
@@ -180,58 +196,67 @@ All are scalar binary: one handle operand + one plaintext operand.
 
 ## Session Keys
 
-Decrypt without user signing each request. Useful for background polling.
+Decrypt without the user signing each request. Useful for background polling and popup-free per-player reads.
 
 ```typescript
-import { generateSecp256k1Keypair } from "@inco/js/lite";
+import { generateXwingKeypair } from "@inco/lightning-js/lite";
+import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 
-// 1. Generate ephemeral keypair
-const ephemeralKeypair = generateSecp256k1Keypair();
+// 1. Ephemeral signing account (the "session key") + an X-Wing reencryption
+//    keypair (post-quantum; generation is async in v1).
+const ephemeralAccount = privateKeyToAccount(generatePrivateKey());
+const reencryptKeypair = await generateXwingKeypair();
+const reencryptPubKey = reencryptKeypair.encodePublicKey();
+
 const defaultSessionVerifier = "0xc34569efc25901bdd6b652164a2c8a7228b23005";
 
-// 2. Grant session key (one-time, user signs)
+// 2. Grant the voucher (one-time, user signs). Grantee is the session key ADDRESS.
 const expiresAt = new Date(Date.now() + 3600000); // 1 hour
 const voucher = await zap.grantSessionKeyAllowanceVoucher(
   walletClient,
-  ephemeralKeypair.encodePublicKey(),
+  ephemeralAccount.address,
   expiresAt,
   defaultSessionVerifier,
 );
 
-// 3. Decrypt without wallet signature
+// 3. Decrypt without a wallet signature. v1 signature: (account, voucher, handles, options?)
+//    — no publicClient arg; reencryption goes in the options object.
 const results = await zap.attestedDecryptWithVoucher(
-  ephemeralKeypair,
+  ephemeralAccount,
   voucher,
-  publicClient,               // viem PublicClient (or WalletClient) — REQUIRED 3rd arg
-  ["0x<handle>" as HexString]
+  ["0x<handle>" as HexString],
+  { reencryptPubKey, reencryptKeypair },
 );
+const plaintext = results[0].plaintext.value;
+
+// Revoke all outstanding vouchers (e.g. on logout):
+// await zap.updateActiveVouchersSessionNonce(walletClient);
 ```
 
 ---
 
 ## Reencryption
 
-Decrypt and re-encrypt for a different recipient (delegate).
+Decrypt and re-encrypt for a different recipient (delegate). In v1 the reencryption keypair is post-quantum X-Wing (`generateXwingKeypair`, async) and is passed inside the options object.
 
 ```typescript
-import { generateSecp256k1Keypair } from "@inco/js/lite";
+import { generateXwingKeypair } from "@inco/lightning-js/lite";
 
-// For delegate (they decrypt with their private key)
-const delegateKeypair = generateSecp256k1Keypair();
+// For a delegate (they decrypt with their own private key)
+const delegateKeypair = await generateXwingKeypair();
 const encryptedResults = await zap.attestedDecrypt(
   walletClient,
   ["0x<handle>" as HexString],
-  delegateKeypair.encodePublicKey()
+  { reencryptPubKey: delegateKeypair.encodePublicKey() }
 );
 const encryptedAttestation = encryptedResults[0].encryptedPlaintext;
 
-// Reencrypt and decrypt locally
-const keypair = generateSecp256k1Keypair();
+// Reencrypt AND decrypt locally — pass both the pubkey and the keypair
+const keypair = await generateXwingKeypair();
 const results = await zap.attestedDecrypt(
   walletClient,
   ["0x<handle>" as HexString],
-  keypair.encodePublicKey(),
-  keypair  // auto-decrypts locally
+  { reencryptPubKey: keypair.encodePublicKey(), reencryptKeypair: keypair }
 );
 const plaintext = results[0].plaintext.value;
 ```
@@ -248,7 +273,7 @@ const getFeeAbi = [
     inputs: [],
     name: "getFee",
     outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
-    stateMutability: "view",
+    stateMutability: "pure",
     type: "function",
   },
 ] as const;
@@ -273,21 +298,23 @@ await writeContract({
 
 ## Retry Configuration
 
-All decryption methods support retry config for covalidator latency:
+All decryption methods support retry config for covalidator latency. In v1 the config is nested under `backoffConfig` and the fields changed:
 
 ```typescript
-const backoffConfig = {
-  maxRetries: 5,
-  initialDelay: 1000,
-  maxDelay: 10000,
-};
-
 const results = await zap.attestedDecrypt(
   walletClient,
   ["0x<handle>" as HexString],
-  backoffConfig
+  {
+    backoffConfig: {
+      maxRetries: 12,
+      baseDelayInMs: 350,   // was `initialDelay`
+      backoffFactor: 1.4,   // retry multiplier; replaces `maxDelay`
+    },
+  }
 );
 ```
+
+The delay before retry `n` is `baseDelayInMs * backoffFactor^n`. Put `backoffConfig` and `reencryptPubKey`/`reencryptKeypair` in the **same** options object when you need both.
 
 ---
 
@@ -296,8 +323,8 @@ const results = await zap.attestedDecrypt(
 Complete hook pattern for React + wagmi:
 
 ```typescript
-import { Lightning } from "@inco/js/lite";
-import { handleTypes } from "@inco/js";
+import { Lightning } from "@inco/lightning-js/lite";
+import { handleTypes } from "@inco/lightning-js";
 import { useAccount, useWalletClient, usePublicClient, useWriteContract } from "wagmi";
 import { parseEther, pad, toHex, bytesToHex } from "viem";
 
@@ -305,7 +332,7 @@ import { parseEther, pad, toHex, bytesToHex } from "viem";
 let zapPromise: Promise<any> | null = null;
 async function getZap() {
   if (!zapPromise) {
-    zapPromise = Lightning.latest("testnet", 84532);
+    zapPromise = Lightning.baseSepoliaTestnet();
   }
   return zapPromise;
 }

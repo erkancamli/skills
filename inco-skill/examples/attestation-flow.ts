@@ -7,17 +7,16 @@
  * 3. Attested Compute - off-chain computation with on-chain proof
  *
  * Prerequisites:
- *   npm install @inco/js viem
+ *   npm install @inco/lightning-js@latest viem
  *   Deploy ConfidentialWithAttestation.sol first
  */
 
-import { Lightning } from "@inco/js/lite";
+import { Lightning } from "@inco/lightning-js/lite";
 import {
   handleTypes,
-  supportedChains,
   type HexString,
-} from "@inco/js";
-import { AttestedComputeSupportedOps } from "@inco/js/lite";
+} from "@inco/lightning-js";
+import { AttestedComputeSupportedOps } from "@inco/lightning-js/lite";
 import {
   createPublicClient,
   createWalletClient,
@@ -26,7 +25,6 @@ import {
   toHex,
   bytesToHex,
   type Address,
-  encodeFunctionData,
 } from "viem";
 import { baseSepolia } from "viem/chains";
 import { privateKeyToAccount } from "viem/accounts";
@@ -131,7 +129,7 @@ const GET_FEE_ABI = [
     inputs: [],
     name: "getFee",
     outputs: [{ name: "", type: "uint256" }],
-    stateMutability: "view",
+    stateMutability: "pure",
     type: "function",
   },
 ] as const;
@@ -158,7 +156,7 @@ async function main() {
   const publicClient = createPublicClient({ chain: baseSepolia, transport: http() });
   const walletClient = createWalletClient({ account, chain: baseSepolia, transport: http() });
 
-  const zap = await Lightning.latest("testnet", supportedChains.baseSepolia);
+  const zap = await Lightning.baseSepoliaTestnet();
   const fee = (await publicClient.readContract({
     address: zap.executorAddress as Address,
     abi: GET_FEE_ABI,

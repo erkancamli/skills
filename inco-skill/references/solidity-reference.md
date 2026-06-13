@@ -14,7 +14,7 @@
 - [Fee Payment](#fee-payment)
 - [Attestation Verification](#attestation-verification)
 - [Best Practices](#best-practices)
-- [EList Preview](#elist-preview)
+- [EList](#elist)
 
 ---
 
@@ -46,9 +46,9 @@ For testing (Foundry):
 import {IncoTest} from "@inco/lightning/src/test/IncoTest.sol";
 ```
 
-For EList preview:
+For EList (built into the core library in v1):
 ```solidity
-import {ePreview, elist, ETypes} from "@inco/lightning-preview/src/Preview.Lib.sol";
+import {euint256, ebool, e, inco, elist, ETypes} from "@inco/lightning/src/Lib.sol";
 ```
 
 ---
@@ -306,7 +306,7 @@ The fee is forwarded from the **contract's balance** — the `Lib` wrappers run 
 - **Pay-per-call (user pays).** Make the function `payable` and `require(msg.value >= inco.getFee() * n)`; the user's ETH lands in the contract and is forwarded on. Optional `Fee` modifiers enforce/refund it: `paying` (`require(msg.value == FEE)`), `payingMultiple(n)`, `refundUnspent`.
 - **Sponsor (pre-fund the contract).** Fund the contract with ETH ahead of time; each op draws `inco.getFee()` from the existing balance. The function **need not be `payable`** and the caller pays nothing for fees — a paymaster-style "gasless-for-fees" UX. There is no sponsor primitive; "pre-funded" just means the contract holds ETH.
 
-**Notes.** A sponsoring contract must stay funded or fee-charging ops revert — top it up and gate withdrawals so the reserve can't be drained. `FEE` is `0.0001 ether` today but may change via upgrades, so always read `inco.getFee()` — never hardcode. Only ciphertext *ingestion* (`newE*`) and *randomness* (`rand`/`randBounded`/`shuffle`) charge a fee; compute on existing handles (`add`/`eq`/`select`/`getEbool`/`reveal`) is free.
+**Notes.** A sponsoring contract must stay funded or fee-charging ops revert — top it up and gate withdrawals so the reserve can't be drained. `FEE` is `0.000001 ether` today but may change via upgrades, so always read `inco.getFee()` — never hardcode. Only ciphertext *ingestion* (`newE*`) and *randomness* (`rand`/`randBounded`/`shuffle`) charge a fee; compute on existing handles (`add`/`eq`/`select`/`getEbool`/`reveal`) is free.
 
 ---
 
@@ -408,12 +408,11 @@ Standard is GWEI (1e9) not WAD (1e18) for confidential fungible tokens.
 
 ---
 
-## EList Preview
+## EList
 
-Encrypted dynamic lists. Import:
+Encrypted dynamic lists. As of v1 these are built into the core library (no separate `-preview` package), and every operation is on the `e` namespace. Import:
 ```solidity
-import {ePreview, elist, ETypes} from "@inco/lightning-preview/src/Preview.Lib.sol";
-import {euint256, ebool, e, inco} from "@inco/lightning/src/Lib.sol";
+import {euint256, ebool, e, inco, elist, ETypes} from "@inco/lightning/src/Lib.sol";
 ```
 
 See [elist-reference.md](elist-reference.md) for the full EList API.

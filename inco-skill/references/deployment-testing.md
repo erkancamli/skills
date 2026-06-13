@@ -17,14 +17,11 @@
 ### Dependencies (npm/bun)
 
 ```bash
-# Core Inco Solidity library
-bun add @inco/lightning
+# Core Inco Solidity library (EList is built in as of v1)
+bun add @inco/lightning@latest
 
-# For EList preview features
-bun add @inco/lightning-preview
-
-# Frontend JS SDK
-bun add @inco/js
+# Frontend JS SDK (renamed from @inco/js in v1)
+bun add @inco/lightning-js@latest
 
 # Other common deps
 bun add @openzeppelin/contracts
@@ -51,7 +48,7 @@ bun install
 
 1. Install dependencies:
 ```bash
-bun add @inco/lightning https://github.com/dapphub/ds-test https://github.com/foundry-rs/forge-std @openzeppelin/contracts
+bun add @inco/lightning@latest https://github.com/dapphub/ds-test https://github.com/foundry-rs/forge-std @openzeppelin/contracts
 ```
 
 2. Create `remappings.txt`:
@@ -103,6 +100,13 @@ const config: HardhatUserConfig = {
         ? [process.env.PRIVATE_KEY_BASE_SEPOLIA]
         : [],
     },
+    // Inco is also live on Base mainnet (real ETH). Frontend uses Lightning.baseMainnet().
+    base: {
+      url: process.env.BASE_MAINNET_RPC_URL || "https://mainnet.base.org",
+      accounts: process.env.PRIVATE_KEY_BASE
+        ? [process.env.PRIVATE_KEY_BASE]
+        : [],
+    },
   },
 };
 
@@ -117,16 +121,19 @@ Both Foundry and Hardhat templates use the same Docker setup:
 
 ### docker-compose.yaml
 ```yaml
+# v1 local node — the `mainnet` pepper images match the canonical executor in
+# @inco/lightning/src/Lib.sol. Init the SDK against them with Lightning.localNode("mainnet").
 services:
   anvil:
-    image: inconetwork/local-node-anvil-testnet:v0.7.10
+    image: inconetwork/local-node-anvil-mainnet:v1.0.0
     ports:
       - "8545:8545"
 
   covalidator:
-    image: inconetwork/local-node-covalidator-testnet:v0.7.10
+    image: inconetwork/local-node-covalidator-mainnet:v1.0.0
     depends_on:
-      - anvil
+      anvil:
+        condition: service_healthy
     ports:
       - "50055:50055"
 ```
@@ -262,8 +269,8 @@ Hardhat tests use the real Lightning SDK and require Docker for the local node +
 ```typescript
 import { expect } from "chai";
 import hre from "hardhat";
-import { Lightning } from "@inco/js/lite";
-import { handleTypes } from "@inco/js";
+import { Lightning } from "@inco/lightning-js/lite";
+import { handleTypes } from "@inco/lightning-js";
 
 describe("MyContract", function () {
   let contract: any;
@@ -273,9 +280,9 @@ describe("MyContract", function () {
     // Initialize Lightning SDK
     const chainId = hre.network.config.chainId;
     if (chainId === 31337) {
-      zap = await Lightning.localNode();
+      zap = await Lightning.localNode("mainnet");
     } else {
-      zap = await Lightning.latest("testnet", 84532);
+      zap = await Lightning.baseSepoliaTestnet();
     }
 
     // Deploy contract
@@ -305,7 +312,7 @@ describe("MyContract", function () {
     const publicClient = await hre.viem.getPublicClient();
     return await publicClient.readContract({
       address: zap.executorAddress,
-      abi: [{ inputs: [], name: "getFee", outputs: [{ type: "uint256" }], stateMutability: "view", type: "function" }],
+      abi: [{ inputs: [], name: "getFee", outputs: [{ type: "uint256" }], stateMutability: "pure", type: "function" }],
       functionName: "getFee",
     });
   }
@@ -314,19 +321,13 @@ describe("MyContract", function () {
 
 ### Decrypt with Retry (Covalidator Latency)
 
+The covalidator processes ciphertexts asynchronously, so a freshly-produced handle may 404 if read immediately. Use the SDK's built-in backoff — don't hand-roll a polling loop:
+
 ```typescript
-async function decryptValue(walletClient: any, handle: string, maxRetries = 10) {
-  const zap = await getConfig();
-  for (let i = 0; i < maxRetries; i++) {
-    try {
-      const results = await zap.attestedDecrypt(walletClient, [handle]);
-      return results[0].plaintext.value;
-    } catch (e) {
-      if (i === maxRetries - 1) throw e;
-      await new Promise(r => setTimeout(r, 3000));
-    }
-  }
-}
+const [result] = await zap.attestedDecrypt(walletClient, [handle], {
+  backoffConfig: { maxRetries: 12, baseDelayInMs: 350, backoffFactor: 1.4 },
+});
+const value = result.plaintext.value;
 ```
 
 Run tests:
