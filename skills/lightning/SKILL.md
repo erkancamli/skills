@@ -11,7 +11,7 @@ description: >
   TRIGGER: imports "@inco/lightning" or "@inco/lightning-js" (or legacy "@inco/js"), mentions Inco, confidential EVM contracts, encrypted
   types, "what should be private in my game", on-chain poker/mafia/minesweeper/word-guessing, fog of war,
   provably fair.
-  NOT for: ZK proofs.
+  NOT for: ZK proofs, FHE/fhevm circuits.
 ---
 
 # Inco EVM Development
@@ -136,7 +136,7 @@ e.asEaddress(addr)        // Plaintext -> encrypted handle
 **Available operations:**
 Math: `add`, `sub`, `mul`, `div`, `rem`, `and`, `or`, `xor`, `shr`, `shl`
 Compare: `eq`, `ne`, `ge`, `gt`, `le`, `lt`, `min`, `max`, `not`
-Control: `select(ifTrue, ifFalse)` - NEVER use if/else with encrypted conditions
+Control: `select(ifTrue, ifFalse)` (first arg = value when condition is true) - NEVER use if/else with encrypted conditions
 
 ### CRITICAL: Access Control
 ```solidity
