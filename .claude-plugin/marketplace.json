@@ -8,7 +8,7 @@
     {
       "name": "inco",
       "source": "./",
-      "description": "Confidential smart contracts, dApps, and games on Inco Lightning (TEE-based confidential EVM). Includes the Inco Lightning skill."
+      "description": "Inco brings full-stack, programmable privacy to blockchains. Includes the Inco Lightning skill — build confidential smart contracts, dApps, and games on EVM (encrypted types, programmable access control, attestation)."
     }
   ]
 }
