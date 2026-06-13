@@ -4,6 +4,7 @@
 - [Installation](#installation)
 - [Initialization](#initialization)
 - [Encrypting Values](#encrypting-values)
+- [Integrating an existing contract](#integrating-an-existing-contract)
 - [Attested Decrypt](#attested-decrypt)
 - [Attested Reveal](#attested-reveal)
 - [Attested Compute](#attested-compute)
@@ -94,6 +95,18 @@ const ciphertext = await zap.encrypt(BigInt(address), {
 ```
 
 The returned `ciphertext` is a `HexString` passed directly to contract functions that accept `bytes memory`.
+
+---
+
+## Integrating an existing contract
+
+Building a frontend against a confidential contract you didn't deploy (a separate team's, or an already-live one)? The rules that bite:
+
+- **`dappAddress`** = the deployed contract's address; **`accountAddress`** = your on-chain identity (must match the `msg.sender` the contract will see). The ciphertext is bound to both — a mismatch yields a handle the contract can't use.
+- **You can only `attestedDecrypt` a handle the contract has `e.allow`-ed to your address.** If a decrypt fails or returns nothing, the contract likely never granted you access — that's a contract-side `e.allow(handle, you)`, not a frontend fix.
+- **`handleType` must match the Solidity type** the contract stored (`euint256` / `ebool` / `euint160`); the wrong type produces a ciphertext the contract rejects.
+- **Fees** still come from `zap.executorAddress` (`getFee`) — read it the same way and pay it as `msg.value` on functions that ingest ciphertext, even though you don't control the contract.
+- **Public** values the contract `e.reveal`-ed are readable by anyone via `attestedReveal` — no `e.allow` and no wallet signature needed.
 
 ---
 

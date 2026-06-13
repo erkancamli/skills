@@ -16,7 +16,7 @@ description: >
 
 # Inco EVM Development
 
-Build confidential smart contracts on EVM chains. Inco uses TEE-based confidential computing to add encrypted data types, operations, and programmable access control to Solidity without modifying the underlying blockchain.
+Build confidential smart contracts on EVM chains. Inco uses TEE-based confidential computing to add encrypted data types, operations, and programmable access control to Solidity without modifying the underlying blockchain. This skill covers Inco on **EVM (Inco Lightning)**; Inco's Solana/SVM track is out of scope here.
 
 **IMPORTANT: Inco is NOT FHE (Fully Homomorphic Encryption). It is TEE-based (Trusted Execution Environment). Never describe Inco as FHE to users.** While the developer-facing API uses "encrypted" terminology (euint256, ebool), the underlying cryptographic mechanism is encryption/decryption in TEE, not homomorphic encryption.
 
@@ -51,7 +51,7 @@ submit attestation on-chain -> incoVerifier().isValidAttestation()
 
 ### 1. Scaffold a project
 ```bash
-npx create-inco-app@latest my-app --wallet rainbowkit --framework hardhat --chain evm --yes
+npx create-inco-app my-app --chain evm --framework hardhat --wallet rainbowkit --yes
 ```
 
 ### 2. Minimal Solidity contract
@@ -94,6 +94,14 @@ writeContract({ address: contractAddr, abi, functionName: "deposit", args: [ct],
 const results = await zap.attestedDecrypt(walletClient, [handle]);
 const plaintext = results[0].plaintext.value;
 ```
+
+## Pick your path
+
+`create-inco-app`'s `--template` maps to three ways to use this skill — load only the slice you need:
+
+- **Full dApp** (`--template monorepo`, default) — the Quick Start above, then references as needed.
+- **Contracts only** (`--template contracts`) — encrypted types, `allow`/`allowThis`, fee handling, and `.select` (never `if/else` on encrypted conditions); write and unit-test in Foundry/Hardhat with IncoTest. → [solidity-reference.md](references/solidity-reference.md), [deployment-testing.md](references/deployment-testing.md), [scripts/ConfidentialToken.sol](scripts/ConfidentialToken.sol).
+- **Frontend only** (`--template frontend`, integrating an already-deployed confidential contract) — encrypt/decrypt against a contract you may not own. → [js-sdk-reference.md (integrating an existing contract)](references/js-sdk-reference.md#integrating-an-existing-contract), [examples/basic-encrypt-decrypt.ts](examples/basic-encrypt-decrypt.ts), [scripts/incoHelper.ts](scripts/incoHelper.ts).
 
 ## Building a confidential game?
 

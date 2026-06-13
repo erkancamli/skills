@@ -1,6 +1,6 @@
 # Inco for AI coding agents
 
-[Inco](https://inco.org) is **full-stack, programmable privacy for blockchains** — protecting address and transaction details to unlock payments, DeFi, onchain finance, gaming, and governance. This **agent skill** teaches building **confidential smart contracts, dApps, and games** on **Inco Lightning** (its confidential EVM, v1): encrypted types, programmable access control, and attestation across the `@inco/lightning` Solidity lib + `@inco/lightning-js` SDK. It works in **Claude Code, Codex, Cursor, and 70+ agents**, and brings *game-design sense* — helping you decide **what must stay private**, **which Inco feature to reach for**, and **how to wire it end-to-end**. Future Inco skills ship alongside it.
+[Inco](https://inco.org) is **full-stack, programmable privacy for blockchains** — protecting address and transaction details to unlock payments, DeFi, onchain finance, gaming, and governance. This **agent skill** teaches building **confidential smart contracts, dApps, and games** on **Inco Lightning**: encrypted types, programmable access control, and attestation across the `@inco/lightning` Solidity lib + `@inco/lightning-js` SDK. It works in **Claude Code, Codex, Cursor, and 70+ agents**, and brings *game-design sense* — helping you decide **what must stay private**, **which Inco feature to reach for**, and **how to wire it end-to-end**. Future Inco skills ship alongside it.
 
 **[Download the skill (zip)](https://github.com/Inco-fhevm/skills/raw/main/assets/inco-lightning.zip)**
 

@@ -347,18 +347,31 @@ npx hardhat test --network baseSepolia
 ## Scaffolding with create-inco-app
 
 ```bash
-# Interactive
-npx create-inco-app@latest my-app
+# Interactive (prompts for template, chain, framework, wallet)
+npx create-inco-app my-app
 
-# Non-interactive
-npx create-inco-app@latest my-app \
-  --wallet rainbowkit \
-  --framework hardhat \
-  --chain evm \
-  --yes
-
-# Wallet options: rainbowkit, privy, dynamic, reown, para
-# Framework options: hardhat, foundry
+# Non-interactive — EVM monorepo with Hardhat + RainbowKit
+npx create-inco-app my-app --chain evm --framework hardhat --wallet rainbowkit --git --install
 ```
 
-Creates a monorepo with `contracts/` and `frontend/` workspaces.
+**Flags:** `-t/--template <monorepo|contracts|frontend>` (default `monorepo`), `-c/--chain <evm|svm>`, `-f/--framework <hardhat|foundry|anchor>`, `-w/--wallet <rainbowkit|privy|dynamic|reown|para>`, `-y/--yes`, `--git`, `--install`, `--use-npm|--use-pnpm|--use-yarn|--use-bun`.
+
+- **Templates:** `monorepo` (contracts + frontend, default), `contracts` (contracts only), `frontend` (Next.js dApp only).
+- **Wallets (EVM):** rainbowkit (recommended), privy, dynamic, reown, para.
+- **Frameworks (EVM):** hardhat (recommended), foundry. (`anchor` is the Solana/SVM path — `create-inco-app` also scaffolds SVM via `--chain svm --framework anchor`, but this skill covers the EVM / Inco Lightning path.)
+
+The EVM monorepo ships `contracts/` (Hardhat or Foundry; `ConfidentialERC20.sol` + `ConfidentialLottery.sol`, tests, Ignition deploy) and `frontend/` (Next.js 15 + Tailwind, the chosen wallet, pre-wired Inco helpers). It targets **Base Sepolia by default**, switchable to Base mainnet via `NEXT_PUBLIC_NETWORK`.
+
+### Workspace scripts (EVM)
+
+```bash
+npm run dev                      # frontend dev server
+npm run contracts:compile        # compile contracts
+npm run contracts:test           # run contract tests
+npm run contracts:node           # local Inco node (anvil + covalidator)
+npm run contracts:deploy:local   # deploy to local node
+npm run contracts:deploy:testnet # deploy to Base Sepolia
+npm run contracts:deploy:mainnet # deploy to Base mainnet
+```
+
+Deploy keys live in `contracts/.env` per chain (`PRIVATE_KEY_ANVIL` / `PRIVATE_KEY_BASE_SEPOLIA` / `PRIVATE_KEY_BASE`); `deploy:token:*` variants deploy only the token. For a scaffolded project, `npm run contracts:node` replaces the manual docker-compose in [Local Development](#local-development-docker).
