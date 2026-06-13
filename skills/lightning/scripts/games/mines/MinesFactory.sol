@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// REFERENCE EXAMPLE — inco-skill (games layer). Mines factory (holds the bankroll).
+// REFERENCE EXAMPLE — Inco Lightning skill (games layer). Mines factory (holds the bankroll).
 // Demonstrates Model A settlement SAFETY: cumulative liability reservation
 // (totalActiveLiability + canAffordMaxPayout), capped permissionless cleanup, and
 // .call{value:} payouts with a withdraw guard — the F-1..F-5 audit fixes documented in

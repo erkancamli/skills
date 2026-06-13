@@ -1,8 +1,8 @@
-# inco-skill
+# Inco for Claude Code
 
-A [Claude Code](https://claude.com/claude-code) skill for building **confidential games and dApps on Inco** — the TEE-based confidential layer for EVM. It knows Inco Lightning (the Solidity lib + `@inco/lightning-js` SDK, v1) cold, and it brings *game-design sense*: it helps you decide **what must stay private**, **which Inco feature to reach for**, and **how to wire it end-to-end**.
+The **`inco`** [Claude Code](https://claude.com/claude-code) plugin for building **confidential smart contracts, dApps, and games on Inco** — the TEE-based confidential layer for EVM. Its **Inco Lightning** skill (`/inco:lightning`) knows the Solidity lib + `@inco/lightning-js` SDK (v1) cold, and brings *game-design sense*: it helps you decide **what must stay private**, **which Inco feature to reach for**, and **how to wire it end-to-end**. Future Inco skills ship under the same plugin.
 
-**[Download inco-skill.zip](https://github.com/Inco-fhevm/skills/raw/main/assets/inco-skill.zip)**
+**[Download the skill (zip)](https://github.com/Inco-fhevm/skills/raw/main/assets/inco-lightning.zip)**
 
 ---
 
@@ -21,18 +21,27 @@ A [Claude Code](https://claude.com/claude-code) skill for building **confidentia
 
 ## Install
 
-Unzip, then drop the folder into your Claude Code skills directory:
+**Plugin marketplace (recommended):**
+
+```bash
+/plugin marketplace add Inco-fhevm/skills
+/plugin install inco@inco
+```
+
+The skill is then available as **`/inco:lightning`** and auto-activates from its description.
+
+**Manual (no marketplace):** download the zip above, unzip, and copy the skill folder into your Claude Code skills directory:
 
 ```bash
 mkdir -p ~/.claude/skills
-cp -R inco-skill ~/.claude/skills/inco-skill
+cp -R lightning ~/.claude/skills/lightning
 ```
 
-_(Or place `inco-skill/` in a project's `.claude/skills/` to scope it to a single repo.)_
+_(Or place it in a project's `.claude/skills/` to scope it to one repo. Installed manually it's invoked as `/lightning`.)_
 
 ## Use
 
-Open Claude Code and type **`/inco-skill`** — or just describe what you want and it activates on its own:
+Open Claude Code and type **`/inco:lightning`** — or just describe what you want and it activates on its own:
 
 > *"build a confidential sealed-bid auction on Inco"*
 > *"what should be private in my on-chain poker game?"*

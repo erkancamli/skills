@@ -1,0 +1,11 @@
+{
+  "name": "inco",
+  "description": "Build confidential smart contracts, dApps, and games on Inco — TEE-based confidential computing for EVM (Inco Lightning). Encrypted types, programmable access control, and attestation across the @inco/lightning Solidity library and @inco/lightning-js SDK, plus a confidential-game design layer.",
+  "version": "1.0.0",
+  "author": {
+    "name": "Inco",
+    "url": "https://github.com/Inco-fhevm"
+  },
+  "homepage": "https://docs.inco.org",
+  "keywords": ["inco", "lightning", "confidential", "evm", "solidity", "tee", "encrypted", "games"]
+}

@@ -1,10 +1,10 @@
 # Confidential Game Design on Inco
 
-> The games hub of inco-skill. Start here when designing a confidential / hidden-information game — casino/provably-fair, card, board, sealed-auction, social-deduction, fog-of-war, or word/code-guessing — to decide WHAT should be private, WHICH Inco feature goes where, and how to build it fast. The base API (encrypted types, `e.allow`, attestation, the JS SDK, `create-inco-app`) is on the [main skill page](../../SKILL.md) and the `references/*-reference.md` files. Not for perfect-information games with no hidden state, or a one-shot secret better served by plain commit-reveal.
+> The games hub of this skill. Start here when designing a confidential / hidden-information game — casino/provably-fair, card, board, sealed-auction, social-deduction, fog-of-war, or word/code-guessing — to decide WHAT should be private, WHICH Inco feature goes where, and how to build it fast. The base API (encrypted types, `e.allow`, attestation, the JS SDK, `create-inco-app`) is on the [main skill page](../../SKILL.md) and the `references/*-reference.md` files. Not for perfect-information games with no hidden state, or a one-shot secret better served by plain commit-reveal.
 
 ## When to use this page
 
-This is the **game-design layer** of inco-skill. The base API (encrypted types, `e.allow`, attestation, the JS SDK, `create-inco-app`) lives on the main [SKILL.md](../../SKILL.md) and the `references/*-reference.md` files; this file teaches confidential *game design* on top of it. The primary entry path is: **"I have a game idea → what should be private, which Inco features go where, and how do I build it fast?"** Use it for any confidential / hidden-information game whose on-chain state must stay secret with selective reveal. Inco is **TEE-based, not FHE**: "encrypted" means decrypt-in-TEE, never homomorphic. *Not* the right tool for perfect-information games with no hidden state (chess, Go), or a one-shot secret that opens once at the end — that's often better served by plain commit-reveal (see [choosing-your-approach.md](choosing-your-approach.md)).
+This is the **game-design layer** of this skill. The base API (encrypted types, `e.allow`, attestation, the JS SDK, `create-inco-app`) lives on the main [SKILL.md](../../SKILL.md) and the `references/*-reference.md` files; this file teaches confidential *game design* on top of it. The primary entry path is: **"I have a game idea → what should be private, which Inco features go where, and how do I build it fast?"** Use it for any confidential / hidden-information game whose on-chain state must stay secret with selective reveal. Inco is **TEE-based, not FHE**: "encrypted" means decrypt-in-TEE, never homomorphic. *Not* the right tool for perfect-information games with no hidden state (chess, Go), or a one-shot secret that opens once at the end — that's often better served by plain commit-reveal (see [choosing-your-approach.md](choosing-your-approach.md)).
 
 ## Step 1 — What's secret, and when does it reveal? (the decision tree)
 
@@ -94,7 +94,7 @@ Every confidential game on Inco — whatever the genre — is the same four-stag
 
 ## Validation checklist
 
-Game-specific checks, on top of inco-skill's base checklist (`allowThis` on every update, fee on every `newE*`, etc.). Each item links to where it's explained:
+Game-specific checks, on top of this skill's base checklist (`allowThis` on every update, fee on every `newE*`, etc.). Each item links to where it's explained:
 
 - [ ] Never `if/else`/`require` on encrypted conditions — use `.select()` ([patterns.md](patterns.md#silent-failure-select))
 - [ ] `allowThis()` on every persisted handle (board, accumulator, running max) ([patterns.md](patterns.md#sticky-accumulator))
