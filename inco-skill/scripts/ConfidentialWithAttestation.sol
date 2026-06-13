@@ -37,7 +37,6 @@ contract ConfidentialWithAttestation {
         euint256 score = encryptedScore.newEuint256(msg.sender);
         secretScores[msg.sender] = score;
         score.allow(msg.sender);
-        score.allow(address(this));
         score.allowThis();
     }
 

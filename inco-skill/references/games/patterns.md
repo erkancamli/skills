@@ -26,8 +26,7 @@ The eight moves:
 **The move.** Build the board as an **elist** of plaintext-known cell *values* (e.g. `true` for a bomb, `false` for safe), then shuffle the whole list in **one** operation. The randomness is in the *permutation*, not in N separate draws.
 
 ```solidity
-import {ePreview, elist, ETypes} from "@inco/lightning-preview/src/Preview.Lib.sol";
-import {ebool, e, inco} from "@inco/lightning/src/Lib.sol";
+import {ebool, e, inco, elist, ETypes} from "@inco/lightning/src/Lib.sol";
 
 // Build N bomb cells + M safe cells (values are public; their *positions* will be secret).
 bytes32 trueHandle  = ebool.unwrap(e.asEbool(true));
@@ -37,14 +36,14 @@ bytes32[] memory safeHandles = new bytes32[](safeTiles);
 for (uint256 i = 0; i < totalBombs; i++) bombHandles[i] = trueHandle;
 for (uint256 i = 0; i < safeTiles;  i++) safeHandles[i] = falseHandle;
 
-elist bombs    = ePreview.newEList(bombHandles, ETypes.Bool);
-elist safes    = ePreview.newEList(safeHandles, ETypes.Bool);
-elist combined = ePreview.concat(bombs, safes);
-board = ePreview.shuffle(combined);          // ONE op assigns every position
+elist bombs    = e.newEList(bombHandles, ETypes.Bool);
+elist safes    = e.newEList(safeHandles, ETypes.Bool);
+elist combined = e.concat(bombs, safes);
+board = e.shuffle(combined);          // ONE op assigns every position
 inco.allow(elist.unwrap(board), address(this));
 ```
 
-For a card game, `ePreview.shuffledRange(1, 53)` gives you a shuffled 52-card deck in one call. For a single hidden index (which chest holds the prize), `e.randBounded(n)` returns an encrypted index in `[0, n)`; `e.rand()` returns a full-width encrypted draw.
+For a card game, `e.shuffledRange(1, 53, ETypes.Uint256)` gives you a shuffled 52-card deck in one call. For a single hidden index (which chest holds the prize), `e.randBounded(n)` returns an encrypted index in `[0, n)`; `e.rand()` returns a full-width encrypted draw.
 
 **Why it works.** A `shuffle` is one uniform permutation over the list, so the marginal distribution of every position is correct *by construction* — there is no rejection loop to bias. The TEE produces the permutation; the resulting `board` handle is opaque to everyone until a specific element is revealed. Cost collapses from O(N) fee-charging draws to a single `shuffle` (the randomness and elist-construction ops — `shuffle`, `shuffledRange`, `rand`/`randBounded`, and ciphertext/element creation — charge a fee; budget `msg.value >= inco.getFee()` for the setup call, and see the base references for the full list of fee-charging calls). And because each cell is a real list element rather than a bit-packed field, board size is bounded by the list, not by 8 bits.
 
@@ -66,7 +65,7 @@ For a card game, `ePreview.shuffledRange(1, 53)` gives you a shuffled 52-card de
 ```solidity
 // `board` is the shuffled elist from the randomness move.
 // Reading position `pos` is a single op — the other cells are untouched and stay hidden.
-ebool hit = ePreview.getEbool(board, uint16(pos));
+ebool hit = e.getEbool(board, uint16(pos));
 ```
 
 The returned `hit` handle is a transient, memory-only handle valid within this transaction — Inco grants it transient access automatically, so no `e.allow` is needed *unless* you persist it across transactions (see [sticky accumulator](#sticky-accumulator), which does persist its accumulator).
@@ -90,7 +89,7 @@ The returned `hit` handle is a transient, memory-only handle valid within this t
 
 ```solidity
 // Each pick folds this tile's secret outcome into the running bit.
-ebool hit = ePreview.getEbool(board, uint16(pos));
+ebool hit = e.getEbool(board, uint16(pos));
 everHitBomb = e.or(everHitBomb, hit);   // sticky: once true, stays true
 e.allow(everHitBomb, address(this));    // persists across txs — needs cross-tx allow
 e.reveal(everHitBomb);                  // queue the post-fold handle for attestation
@@ -248,7 +247,7 @@ for (uint8 i = 0; i < 4; i++) {
 
 ```solidity
 // Open one tile: reveal THIS pick's outcome only — the rest of the board stays sealed.
-ebool hit = ePreview.getEbool(board, uint16(pos));
+ebool hit = e.getEbool(board, uint16(pos));
 e.reveal(hit);
 
 // Full board: only after the game has ended (confirmed loss), never mid-game.

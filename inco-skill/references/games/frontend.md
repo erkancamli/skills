@@ -35,7 +35,7 @@ setRevealedResults(prev => ({ ...prev, [index]: bomb }));
 setGameState(bomb ? 'lost' : 'playing');
 ```
 
-`decodePickRevealed` just walks the receipt logs for the `PickRevealed` event and returns its `hitHandle` / `accumHandle` args. `retryReveal` (in `interface/lib/inco-attestation.ts`) is a thin wrapper over `zap.attestedReveal(handles, REVEAL_BACKOFF)` — see [§6](#6-retry--backoff).
+`decodePickRevealed` just walks the receipt logs for the `PickRevealed` event and returns its `hitHandle` / `accumHandle` args. `retryReveal` (in `interface/lib/inco-attestation.ts`) is a thin wrapper over `zap.attestedReveal(handles, { backoffConfig: REVEAL_BACKOFF })` — see [§6](#6-retry--backoff).
 
 **Why it works.** The move tx is the *only* thing the player signs. The reveal is a public decryption: the handle was made public on-chain via `e.reveal()`, so `attestedReveal` needs **no wallet signature** — anyone can fetch the attestation (this is what separates it from `attestedDecrypt`, which decrypts a private handle *for an authorized address* and therefore needs the wallet to sign; see the [JS SDK reference](../js-sdk-reference.md#attested-reveal)). That no-signature property is the entire UX crux of the next two sections: the reveal can run in the background with no popup. The covalidator's signature is what makes the painted result trustworthy — the UI isn't taking a server's word, it's holding a TEE attestation it could (and the contract will) verify.
 
@@ -44,7 +44,7 @@ setGameState(bomb ? 'lost' : 'playing');
 **Pitfalls.**
 - **Batch the reveal.** Mines reveals two handles per pick (`hit` for win/lose, the `accum` accumulator for settlement). Pass them as one array — `retryReveal([hitHandle, accumHandle])` — so it's a single covalidator round-trip, not two sequential ones. The code comment flags this as the fix for what used to be two calls.
 - **Decode from the receipt/event, not from a guessed handle.** The revealed handle is whatever the contract emitted this tx; read it out of the `PickRevealed` log rather than reconstructing it client-side, or you'll reveal a stale handle.
-- **Pre-warm the SDK.** `Lightning.latest()` cold-init costs hundreds of ms. Mines calls `getZap()` once on mount (`useEffect(() => { getZap().catch(console.error); }, [])`) so the first reveal after a pick feels instant.
+- **Pre-warm the SDK.** `Lightning.baseSepoliaTestnet()` cold-init costs hundreds of ms. Mines calls `getZap()` once on mount (`useEffect(() => { getZap().catch(console.error); }, [])`) so the first reveal after a pick feels instant.
 
 ### Loop B — private decrypt (only the acting player learns the result)
 
@@ -57,7 +57,7 @@ await waitForReceipt(hash);                         // 2. wait for it to land
 const handle = await readResultHandle();            // 3. read the e.allow-ed handle (e.g. getTile())
 
 // 4. private decrypt — popup-free via a once-per-session voucher (no per-read signature)
-const [result] = await attestedDecryptWithVoucher(sessionKey, voucher, publicClient, [handle]);
+const [result] = await attestedDecryptWithVoucher(sessionKey, voucher, [handle]);
 
 paint(Number(result));                              // 5. client enforces the rule and paints
 ```
@@ -139,16 +139,16 @@ Concretely in Mines:
 
 ```typescript
 // Once per session — the ONLY wallet signature for reading private state.
-const sessionKey = generateSecp256k1Keypair();
+const sessionKey = privateKeyToAccount(generatePrivateKey()); // ephemeral signing account
 const voucher = await zap.grantSessionKeyAllowanceVoucher(
   walletClient,
-  sessionKey.encodePublicKey(),
+  sessionKey.address,
   new Date(Date.now() + 60 * 60 * 1000), // 1h expiry — scope it deliberately
   defaultSessionVerifier,
 );
 
-// Every private peek after that — popup-free.
-const [hand] = await zap.attestedDecryptWithVoucher(sessionKey, voucher, publicClient, [handHandle]);
+// Every private peek after that — popup-free. v1: (account, voucher, handles) — no publicClient.
+const [hand] = await zap.attestedDecryptWithVoucher(sessionKey, voucher, [handHandle]);
 ```
 
 *(Exact signatures, the verifier address, and the full flow live in the base API — see the [Session Keys section](../js-sdk-reference.md#session-keys) and the `session-key-decrypt.ts` example. This file is about **when** a game needs it.)*
@@ -211,37 +211,38 @@ const currentMultiplier =
 **The move.** Use the SDK's built-in backoff — pass one config to `attestedReveal`, no manual loop. Mines centralizes it as `REVEAL_BACKOFF` in `interface/lib/inco-attestation.ts`:
 
 ```ts
-// inco-attestation.ts — bounded exponential backoff, fast first attempt, long tail.
+// inco-attestation.ts — bounded exponential backoff: quick early retries, growing tail.
 export const REVEAL_BACKOFF = {
-  maxRetries: 28,
-  baseDelayInMs: 200,
-  backoffFactor: 1.5,
+  maxRetries: 12,
+  baseDelayInMs: 350,
+  backoffFactor: 1.4,
 };
 
 // retryReveal: the SDK polls the covalidator with this policy — no manual retry loop.
-const results = await zap.attestedReveal(handles, REVEAL_BACKOFF);
+// v1: the backoff goes in the `backoffConfig` field of the opts object.
+const results = await zap.attestedReveal(handles, { backoffConfig: REVEAL_BACKOFF });
 ```
 
-The delay sequence is `200, 300, 450, 675, 1012, …` ms (×1.5 each step), so a fast covalidator response feels instant while the tail grows to ~3 min total to cover the rare slow path.
+The delay sequence is `350, 490, 686, 960, …` ms (×1.4 each step), so a fast covalidator response feels instant while the tail grows to ~50 s total to cover the rare slow path.
 
-**Why it works.** Exponential backoff is fast where it matters (first attempt at 200 ms) and patient where it must be (28 retries with a growing delay), and it lives in the SDK so you don't re-tune it per call site. Centralizing the config in one exported constant means every Inco-touching path in the app retries with the same policy. See the [retry configuration](../js-sdk-reference.md#retry-configuration) in the base API for the underlying SDK knobs.
+**Why it works.** Exponential backoff is fast where it matters (first attempt at 350 ms) and patient where it must be (12 retries with a growing delay), and it lives in the SDK so you don't re-tune it per call site. Centralizing the config in one exported constant means every Inco-touching path in the app retries with the same policy. See the [retry configuration](../js-sdk-reference.md#retry-configuration) in the base API for the underlying SDK knobs.
 
 **Pitfalls.**
 - **Don't hand-roll polling.** Pass the backoff config to the SDK call; a bespoke loop will be both laggier and more fragile than the SDK's.
-- **Don't set the first delay to zero or the retry count to a handful.** A 0 ms first attempt hammers the covalidator on the cold path; too few retries gives up before a backed-up covalidator recovers. The shipped values (`200 ms` base, `1.5×`, `28` retries) are tuned for "instant when ready, patient when not."
+- **Don't set the first delay to zero or the retry count to a handful.** A 0 ms first attempt hammers the covalidator on the cold path; too few retries gives up before a backed-up covalidator recovers. The shipped values (`350 ms` base, `1.4×`, `12` retries) are tuned for "instant when ready, patient when not."
 - **Share one policy.** Import the same `REVEAL_BACKOFF` everywhere rather than sprinkling ad-hoc configs, so reveal behavior is uniform across the app.
 
 ---
 
 ## 7. Design the reveal
 
-**Goal.** The covalidator round-trip after each move (§6: ~200 ms fast path, seconds on the slow one) feels like part of the game, not lag — and the game looks like *its genre*, not a generic dApp.
+**Goal.** The covalidator round-trip after each move (§6: ~350 ms fast path, seconds on the slow one) feels like part of the game, not lag — and the game looks like *its genre*, not a generic dApp.
 
 **Naïve approach & why it breaks.** Treat the reveal latency as a purely technical problem: a spinner on the board, a "Loading…" toast, all styled with the default-font, purple-gradient dashboard kit every dApp ships. The wait reads as jank, the game reads as a form — and the one moment players actually stare at ("did I hit the bomb?") gets the least design attention in the app.
 
 **The move.** Spend the animation budget on the reveal window, and commit to one aesthetic direction drawn from the game's genre.
 
-- **Time anticipation to the backoff.** The first attestation attempt lands at ~200 ms (§6). Play an anticipation animation that covers that window — the tile trembles, the card starts its flip, the wheel spins — and resolve it into the result the moment `attestedReveal` returns. The fast path feels seamless; the slow path stays *in fiction* (keep looping the anticipation, never degrade to a spinner).
+- **Time anticipation to the backoff.** The first attestation attempt lands at ~350 ms (§6). Play an anticipation animation that covers that window — the tile trembles, the card starts its flip, the wheel spins — and resolve it into the result the moment `attestedReveal` returns. The fast path feels seamless; the slow path stays *in fiction* (keep looping the anticipation, never degrade to a spinner).
 - **Stage multi-handle reveals.** `retryReveal([hitHandle, accumHandle])` returns both handles together (§1), but nothing forces you to paint them together: land the hit first, beat, then count the accumulator/multiplier up. Sequencing one round-trip into beats is free drama.
 - **Genre-true aesthetics.** Casino → felt, neon, brass; fog-of-war → darkness and lantern light; social deduction → dossiers and redaction bars. Pick one direction and execute it everywhere; avoid the generic-dApp look (default font stack, purple-on-white gradients, emoji as icons).
 

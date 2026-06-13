@@ -24,12 +24,10 @@ contract HangmanFactory {
     error FeeNotPaid(uint256 requiredFee);
     address public master;
     euint256[] private fourBytes;
-    uint256 public currentWord;
     mapping(address => address) public getGameAddressByPlayer;
 
     constructor(address _master) {
         master = _master;
-        currentWord = 0;
     }
 
     function getWordsTotal() public view returns (uint256) {

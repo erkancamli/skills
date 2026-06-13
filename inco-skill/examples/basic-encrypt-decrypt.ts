@@ -9,11 +9,11 @@
  * 5. Decrypt with attestation
  *
  * Prerequisites:
- *   npm install @inco/js viem
+ *   npm install @inco/lightning-js@latest viem
  */
 
-import { Lightning } from "@inco/js/lite";
-import { handleTypes, getViemChain, supportedChains, type HexString } from "@inco/js";
+import { Lightning } from "@inco/lightning-js/lite";
+import { handleTypes, type HexString } from "@inco/lightning-js";
 import {
   createPublicClient,
   createWalletClient,
@@ -53,7 +53,7 @@ const GET_FEE_ABI = [
     inputs: [],
     name: "getFee",
     outputs: [{ name: "", type: "uint256" }],
-    stateMutability: "view",
+    stateMutability: "pure",
     type: "function",
   },
 ] as const;
@@ -75,8 +75,8 @@ async function main() {
     transport: http(),
   });
 
-  // 2. Initialize Inco Lightning SDK
-  const zap = await Lightning.latest("testnet", supportedChains.baseSepolia);
+  // 2. Initialize Inco Lightning SDK (Base Sepolia network factory)
+  const zap = await Lightning.baseSepoliaTestnet();
   console.log("Lightning SDK initialized");
   console.log("Executor address:", zap.executorAddress);
 
@@ -126,24 +126,13 @@ async function main() {
 
   console.log("Requesting decryption (may take a few seconds for covalidator)...");
 
-  // Retry loop - covalidator needs time to process
-  let plaintext: bigint | undefined;
-  for (let attempt = 0; attempt < 10; attempt++) {
-    try {
-      const results = await zap.attestedDecrypt(walletClient, [handleHex]);
-      plaintext = results[0].plaintext.value as bigint;
-      break;
-    } catch (e) {
-      console.log(`  Attempt ${attempt + 1}/10 - waiting for covalidator...`);
-      await new Promise((r) => setTimeout(r, 3000));
-    }
-  }
-
-  if (plaintext !== undefined) {
-    console.log("Decrypted balance:", plaintext.toString());
-  } else {
-    console.log("Failed to decrypt after retries");
-  }
+  // The covalidator processes asynchronously — use the SDK's built-in backoff
+  // rather than a hand-rolled retry loop.
+  const results = await zap.attestedDecrypt(walletClient, [handleHex], {
+    backoffConfig: { maxRetries: 12, baseDelayInMs: 350, backoffFactor: 1.4 },
+  });
+  const plaintext = results[0].plaintext.value as bigint;
+  console.log("Decrypted balance:", plaintext.toString());
 }
 
 main().catch(console.error);

@@ -8,14 +8,14 @@
  * - Delegated decryption
  *
  * Prerequisites:
- *   npm install @inco/js viem
+ *   npm install @inco/lightning-js@latest viem
  */
 
-import { Lightning, generateSecp256k1Keypair } from "@inco/js/lite";
-import { supportedChains, type HexString } from "@inco/js";
-import { createWalletClient, http, pad, toHex } from "viem";
+import { Lightning, generateXwingKeypair } from "@inco/lightning-js/lite";
+import { type HexString } from "@inco/lightning-js";
+import { createWalletClient, http } from "viem";
 import { baseSepolia } from "viem/chains";
-import { privateKeyToAccount } from "viem/accounts";
+import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 
 // ─── Configuration ──────────────────────────────────────────
 
@@ -34,12 +34,15 @@ async function main() {
     transport: http(),
   });
 
-  const zap = await Lightning.latest("testnet", supportedChains.baseSepolia);
+  const zap = await Lightning.baseSepoliaTestnet();
 
-  // ─── Step 1: Generate Ephemeral Keypair ───────────────────
+  // ─── Step 1: Create an Ephemeral Session Account ──────────
 
-  const ephemeralKeypair = generateSecp256k1Keypair();
-  console.log("Generated ephemeral keypair for session");
+  // The session key is a throwaway signing account. The voucher (Step 2)
+  // authorizes it to decrypt the user's handles until expiry — no wallet
+  // popup per read.
+  const ephemeralAccount = privateKeyToAccount(generatePrivateKey());
+  console.log("Created ephemeral session account:", ephemeralAccount.address);
 
   // ─── Step 2: Grant Session Key (one-time, requires wallet signature) ─
 
@@ -48,7 +51,7 @@ async function main() {
 
   const voucher = await zap.grantSessionKeyAllowanceVoucher(
     walletClient,
-    ephemeralKeypair.encodePublicKey(),
+    ephemeralAccount.address,
     expiresAt,
     DEFAULT_SESSION_VERIFIER
   );
@@ -59,8 +62,9 @@ async function main() {
   // From this point on, no wallet popup is needed
   console.log("\nDecrypting with session key (no wallet signature needed)...");
 
+  // v1 signature: (account, voucher, handles, options?) — no publicClient arg.
   const results = await zap.attestedDecryptWithVoucher(
-    ephemeralKeypair,
+    ephemeralAccount,
     voucher,
     [ENCRYPTED_HANDLE]
   );
@@ -78,7 +82,7 @@ async function main() {
 
   for (const handle of handles) {
     const result = await zap.attestedDecryptWithVoucher(
-      ephemeralKeypair,
+      ephemeralAccount,
       voucher,
       [handle]
     );
@@ -89,13 +93,14 @@ async function main() {
 
   console.log("\nReencrypting for a delegate...");
 
-  const delegateKeypair = generateSecp256k1Keypair();
+  // Post-quantum X-Wing keypair for the delegate (generation is async in v1).
+  const delegateKeypair = await generateXwingKeypair();
 
   const encryptedResults = await zap.attestedDecryptWithVoucher(
-    ephemeralKeypair,
+    ephemeralAccount,
     voucher,
     [ENCRYPTED_HANDLE],
-    delegateKeypair.encodePublicKey()
+    { reencryptPubKey: delegateKeypair.encodePublicKey() }
   );
 
   console.log("Reencrypted attestation created for delegate");

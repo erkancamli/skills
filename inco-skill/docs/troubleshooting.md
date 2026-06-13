@@ -76,16 +76,12 @@ euint256 result = condition.select(valueIfTrue, valueIfFalse);
 ### "attestedDecrypt" fails or times out
 **Cause**: Covalidator hasn't processed the ciphertext yet. This is common immediately after a transaction.
 
-**Fix**: Implement retry logic with delays:
+**Fix**: Use the SDK's built-in backoff — don't hand-roll a polling loop:
 ```typescript
-for (let i = 0; i < 10; i++) {
-  try {
-    const results = await zap.attestedDecrypt(walletClient, [handle]);
-    return results[0].plaintext.value;
-  } catch {
-    await new Promise(r => setTimeout(r, 3000)); // Wait 3s
-  }
-}
+const [result] = await zap.attestedDecrypt(walletClient, [handle], {
+  backoffConfig: { maxRetries: 12, baseDelayInMs: 350, backoffFactor: 1.4 },
+});
+return result.plaintext.value;
 ```
 
 ### Encryption returns unexpected ciphertext
@@ -100,16 +96,19 @@ const ct = await zap.encrypt(amount, {
 });
 ```
 
-### `Lightning.latest()` fails
-**Cause**: Network connectivity or wrong parameters.
+### SDK init (`Lightning.baseSepoliaTestnet()` / `localNode()`) fails
+**Cause**: Network connectivity, or the wrong network factory for the chain. v1 adds explicit per-network factories (recommended over the still-supported `Lightning.latest("testnet", chainId)`). Inco is live on Base Sepolia and Base mainnet.
 
 **Fix**:
 ```typescript
-// Testnet (Base Sepolia)
-const zap = await Lightning.latest("testnet", 84532);
+// Base Sepolia testnet (chain 84532)
+const zap = await Lightning.baseSepoliaTestnet();
 
-// Local development
-const zap = await Lightning.localNode();
+// Base mainnet (real ETH)
+const zap = await Lightning.baseMainnet();
+
+// Local development (anvil + covalidator docker) — pass the network "pepper"
+const zap = await Lightning.localNode("mainnet");
 ```
 For local: ensure Docker containers are running (`docker compose up -d`).
 
