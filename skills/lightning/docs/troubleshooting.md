@@ -112,16 +112,25 @@ const zap = await Lightning.localNode("mainnet");
 ```
 For local: ensure Docker containers are running (`docker compose up -d`).
 
-### Handle hex formatting issues
-**Cause**: Handles from contract reads need padding to 32 bytes.
+### Handle hex formatting issues (`InvalidBytesLengthError`, reveals/attestations fail)
+**Cause**: Calling `toHex()` on a handle that is **already a hex string**. `toHex("0xabc…")` treats the string as text and re-encodes it character-by-character, producing a value far longer than 32 bytes → `pad` throws `InvalidBytesLengthError` (or the attestation/reveal silently fails on a wrong handle).
+
+**The rule**: only `toHex()` a handle when it is a **numeric** value (`bigint`/`number`, e.g. an ABI `uint256`). Handles that already arrive as `0x…` strings — **from event logs / `getLogs` args**, or contract reads typed `bytes32` — must be padded **without** `toHex`.
 
 **Fix**:
 ```typescript
 import { pad, toHex } from "viem";
 
-const rawHandle = await publicClient.readContract({ ... });
-const handleHex = pad(toHex(rawHandle), { size: 32 });
+// Handle from an event/log — ALREADY a hex string. Do NOT toHex it.
+const handleHex = pad(rawEventHandle, { size: 32 });
+
+// Handle read as a numeric uint256 — convert first.
+const handleHex = pad(toHex(numericHandle), { size: 32 });
+
+// toHex is for numeric *attestation/plaintext values*, never for already-hex handles:
+const encodedValue = pad(toHex(result.plaintext.value), { size: 32 });
 ```
+Not sure of the type? `typeof handle === "bigint"` → use `toHex`; a `0x…` string → pad as-is.
 
 ### Attestation signatures rejected on-chain
 **Cause**: Handle mismatch - the attestation is for a different handle than expected.

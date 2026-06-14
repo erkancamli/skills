@@ -383,7 +383,9 @@ export function useMyContract() {
   // Decrypt with attestation
   const decryptHandle = async (handle: `0x${string}`) => {
     const zap = await getZap();
-    const paddedHandle = pad(toHex(handle), { size: 32 });
+    // `handle` is ALREADY a hex string (e.g. from an event log) — pad as-is.
+    // Wrapping it in toHex() re-encodes the string and throws InvalidBytesLengthError.
+    const paddedHandle = pad(handle, { size: 32 });
     const results = await zap.attestedDecrypt(walletClient!, [paddedHandle]);
     return results[0];
   };
