@@ -107,6 +107,8 @@ const plaintext = results[0].plaintext.value;
 
 Designing a hidden-information game (casino/provably-fair, cards, board, sealed auction, social deduction, fog-of-war, word/code guessing)? The base API on this page still applies — but start at **[references/games/overview.md](references/games/overview.md)**: it has the decision tree (what's secret, when does it reveal), the archetype catalog, the cross-cutting moves, the two settlement models, and the frontend loop. Load only the games references the task needs.
 
+**Building a deck-shaped game (card hands, hidden roles, or a random draw)?** The [ConfidentialDeck template](https://github.com/Inco-fhevm/confidential-deck-template) is the fastest start: four worked games (War, Blackjack, Raffle, Mafia) on one base contract, an `AGENTS.md` that briefs your AI, and a [live demo](https://confidential-deck.vercel.app). It fits only that deck shape; see [Game jam: build a deck-shaped game fast](references/games/overview.md#game-jam-build-a-deck-shaped-game-fast) for what it covers and where to go otherwise.
+
 **Design before code (RIGID):** do NOT write any Solidity until you have answered the decision tree — *what is secret, from whom, and when does it reveal*. Code written before those answers bakes in the wrong privacy boundary and gets rewritten. "The game is simple, I'll design as I go" is the red flag — simple games still leak through event logs, public state, and reveal timing.
 
 ## Core Concepts
