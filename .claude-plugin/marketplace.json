@@ -8,7 +8,7 @@
     {
       "name": "inco",
       "source": "./",
-      "description": "Inco brings full-stack, programmable privacy to blockchains. Two skills: Inco Lightning — build confidential smart contracts, dApps, and games on EVM (encrypted types, programmable access control, attestation) — and cToken — integrate Inco's Confidential Token: wrap any ERC-20 into private balances with the @inco/ctoken SDK, sessions, and indexer API."
+      "description": "Inco brings full-stack, programmable privacy to blockchains. Two skills: lightning (confidential smart contracts, dApps, and games on EVM) and ctoken (wrap any ERC-20 into private balances with the @inco/ctoken SDK)."
     }
   ]
 }

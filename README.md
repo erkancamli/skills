@@ -2,10 +2,10 @@
 
 [Inco](https://inco.org) is **full-stack, programmable privacy for blockchains** — protecting address and transaction details to unlock payments, DeFi, onchain finance, gaming, and governance. This repo ships **two agent skills** that work in **Claude Code, Codex, Cursor, and 70+ agents**:
 
-- **`lightning`** — build **confidential smart contracts, dApps, and games** on **Inco Lightning**: encrypted types, programmable access control, and attestation across the `@inco/lightning` Solidity lib + `@inco/lightning-js` SDK. Brings *game-design sense* — deciding **what must stay private**, **which Inco feature to reach for**, and **how to wire it end-to-end**.
-- **`ctoken`** — integrate **Inco's Confidential Token (cToken)**: wrap any ERC-20 into private balances and private transfer amounts with the `@inco/ctoken` SDK (core client, React hooks, drop-in UI kit), sessions for silent balance reads, Safe / smart-account support, and the public indexer REST API. Try it live in the [playground](https://ctoken-tze4f72wfa-ew.a.run.app/).
+- **`lightning`** — build **confidential smart contracts, dApps, and games** on **Inco Lightning**: encrypted types, programmable access control, and attestation across the `@inco/lightning` Solidity lib + `@inco/lightning-js` SDK.
+- **`ctoken`** — integrate **Inco's Confidential Token**: wrap any ERC-20 into private balances with the `@inco/ctoken` SDK, sessions, smart accounts, and the indexer API. Try the [playground](https://ctoken-tze4f72wfa-ew.a.run.app/).
 
-**Download:** [inco-lightning.zip](https://github.com/Inco-fhevm/skills/raw/main/assets/inco-lightning.zip) · [inco-ctoken.zip](https://github.com/Inco-fhevm/skills/raw/main/assets/inco-ctoken.zip)
+**Download:** [inco-lightning.zip](https://github.com/Inco-fhevm/skills/raw/main/assets/inco-lightning.zip) or [inco-ctoken.zip](https://github.com/Inco-fhevm/skills/raw/main/assets/inco-ctoken.zip)
 
 ---
 
@@ -24,10 +24,7 @@
 
 ## What the ctoken skill does
 
-- **Ships the v1 facts.** Networks (Base + Base Sepolia), contract addresses, indexer base URLs — so the agent never hardcodes stale ones.
-- **Knows all three SDK layers.** Core `CTokenClient` (browser + Node), React hooks on wagmi/react-query, and the drop-in UI kit (`ConfidentialWallet` and friends).
-- **Gets sessions right.** Sign-once silent reads, the scoped `CTokenSessionVerifier`, and the smart-account rule (Safe / ERC-1271 users must go through sessions).
-- **Covers the indexer API.** Endpoints for tokens, wallets, history, prices; pagination; `Retry-After` semantics; and the production origin-whitelist form.
+Ships the v1 facts (networks, addresses, indexer URLs), knows all three `@inco/ctoken` layers (core client, React hooks, UI kit), and gets the tricky parts right: sessions, the smart-account rule, and async balance settling.
 
 ## Install
 
@@ -61,9 +58,7 @@ Invoke **`/lightning`** or **`/ctoken`** (namespaced `/inco:lightning` / `/inco:
 
 > *"build a confidential sealed-bid auction on Inco"*
 > *"what should be private in my on-chain poker game?"*
-> *"add a hidden-roles mafia mechanic to my game"*
-> *"add a confidential USDC balance to my app with @inco/ctoken"*
-> *"wire up the ConfidentialWallet widget on Base Sepolia"*
+> *"add confidential USDC to my app with @inco/ctoken"*
 
 Start a fresh project with `npx create-inco-app`, or ask the skill to scaffold the Inco starter for you.
 
