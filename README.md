@@ -1,12 +1,15 @@
 # Inco for AI coding agents
 
-[Inco](https://inco.org) is **full-stack, programmable privacy for blockchains** — protecting address and transaction details to unlock payments, DeFi, onchain finance, gaming, and governance. This **agent skill** teaches building **confidential smart contracts, dApps, and games** on **Inco Lightning**: encrypted types, programmable access control, and attestation across the `@inco/lightning` Solidity lib + `@inco/lightning-js` SDK. It works in **Claude Code, Codex, Cursor, and 70+ agents**, and brings *game-design sense* — helping you decide **what must stay private**, **which Inco feature to reach for**, and **how to wire it end-to-end**. Future Inco skills ship alongside it.
+[Inco](https://inco.org) is **full-stack, programmable privacy for blockchains** — protecting address and transaction details to unlock payments, DeFi, onchain finance, gaming, and governance. This repo ships **two agent skills** that work in **Claude Code, Codex, Cursor, and 70+ agents**:
 
-**[Download the skill (zip)](https://github.com/Inco-fhevm/skills/raw/main/assets/inco-lightning.zip)**
+- **`lightning`** — build **confidential smart contracts, dApps, and games** on **Inco Lightning**: encrypted types, programmable access control, and attestation across the `@inco/lightning` Solidity lib + `@inco/lightning-js` SDK.
+- **`ctoken`** — integrate **Inco's Confidential Token**: wrap any ERC-20 into private balances with the `@inco/ctoken` SDK, sessions, smart accounts, and the indexer API. Try the [playground](https://ctoken-tze4f72wfa-ew.a.run.app/).
+
+**Download:** [inco-lightning.zip](https://github.com/Inco-fhevm/skills/raw/main/assets/inco-lightning.zip) or [inco-ctoken.zip](https://github.com/Inco-fhevm/skills/raw/main/assets/inco-ctoken.zip)
 
 ---
 
-## What it does
+## What the lightning skill does
 
 - **Decides what to hide.** Answer two questions — *what's secret, and when does it reveal?* — and it routes you to the right pattern.
 - **Knows the genres.** A catalog of 8 confidential-game archetypes: encrypted board (Mines), fog-of-war (Battleship), hidden hand (poker), hidden roles (mafia), sealed-bid auction, simultaneous-move (RPS), RNG/provably-fair casino, and word/code guessing.
@@ -19,16 +22,20 @@
 - **Game-design layer** — the decision tree, archetype catalog, cross-cutting patterns (confidential randomness, sticky accumulator, equality-match, encrypted packing…), the two settlement models, and the frontend loop.
 - **Worked contracts to learn from** — a full Stake-style **Mines** (wager, on-chain settlement), a **Hangman** word-guesser (non-wager, client-side), and a **confidential ERC-20** token.
 
+## What the ctoken skill does
+
+Ships the live facts (networks, addresses, indexer URLs), knows all three `@inco/ctoken` layers (core client, React hooks, UI kit), and gets the tricky parts right: sessions, the smart-account rule, and async balance settling.
+
 ## Install
 
 **Any agent — [Vercel `skills`](https://github.com/vercel-labs/skills) CLI (recommended).** Works with Claude Code, Codex, Cursor, Cline + 70 more:
 
 ```bash
-npx skills add Inco-fhevm/skills            # discovers & installs the lightning skill
+npx skills add Inco-fhevm/skills            # discovers & installs both skills
 npx skills add Inco-fhevm/skills -a codex   # …or target a specific agent
 ```
 
-**Claude Code — native plugin** (gives the namespaced `/inco:lightning` and the `inco` umbrella for future skills):
+**Claude Code — native plugin** (gives the namespaced `/inco:lightning` and `/inco:ctoken`):
 
 ```bash
 /plugin marketplace add Inco-fhevm/skills
@@ -40,21 +47,22 @@ npx skills add Inco-fhevm/skills -a codex   # …or target a specific agent
 ```bash
 mkdir -p ~/.claude/skills
 cp -R lightning ~/.claude/skills/lightning
+cp -R ctoken ~/.claude/skills/ctoken
 ```
 
-The skill auto-activates from its description, so it kicks in whenever you describe Inco work.
+The skills auto-activate from their descriptions, so they kick in whenever you describe Inco work.
 
 ## Use
 
-Invoke **`/lightning`** (or **`/inco:lightning`** if you installed via the Claude plugin) — or just describe what you want and it activates on its own:
+Invoke **`/lightning`** or **`/ctoken`** (namespaced `/inco:lightning` / `/inco:ctoken` via the Claude plugin) — or just describe what you want and the right skill activates on its own:
 
 > *"build a confidential sealed-bid auction on Inco"*
 > *"what should be private in my on-chain poker game?"*
-> *"add a hidden-roles mafia mechanic to my game"*
+> *"add confidential USDC to my app with @inco/ctoken"*
 
 Start a fresh project with `npx create-inco-app`, or ask the skill to scaffold the Inco starter for you.
 
 ## Good to know
 
 - **Inco is TEE-based, not FHE.** "Encrypted" means decrypt-in-TEE; "provably fair" means a covalidator attestation, not a zk proof. The skill is honest about this throughout.
-- Pairs with the Inco toolchain: `@inco/lightning` (Solidity) + `@inco/lightning-js` (frontend), both at v1, scaffolded via `create-inco-app`.
+- Pairs with the Inco toolchain: `@inco/lightning` (Solidity) + `@inco/lightning-js` (frontend), both at v1, scaffolded via `create-inco-app` — and `@inco/ctoken` for the Confidential Token SDK.
