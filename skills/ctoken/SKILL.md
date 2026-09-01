@@ -13,7 +13,7 @@ description: >
 
 # Inco Confidential Token (cToken)
 
-cToken turns any ERC-20 into a confidential token. Balances and transfer amounts stay encrypted, only the holder can read them, and the token still moves on-chain like any other. This skill is for integrating cToken v1 with the `@inco/ctoken` SDK. To write new confidential contracts, use the lightning skill.
+cToken turns any ERC-20 into a confidential token. Balances and transfer amounts stay encrypted, only the holder can read them, and the token still moves on-chain like any other. This skill is for integrating cToken with the `@inco/ctoken` SDK. To write new confidential contracts, use the lightning skill.
 
 **Inco is TEE-based, not FHE.** Never describe cToken as FHE.
 
@@ -28,7 +28,7 @@ Wrap: approve the cToken, call `wrap(to, amount)`, your ERC-20 goes into a share
 | Base | `base` | `https://api.ctoken.inco.org/api` | [ctoken.inco.org](https://ctoken.inco.org) |
 | Base Sepolia | `baseSepolia` | `https://api.ctoken.testnet.inco.org/api` | [ctoken.testnet.inco.org](https://ctoken.testnet.inco.org) |
 
-v1 uses the same addresses on both networks, and the SDK ships them. Never hardcode:
+The same addresses work on both networks, and the SDK ships them. Never hardcode:
 
 | Contract | Address |
 |---|---|
@@ -118,7 +118,7 @@ Open, rate limited per IP, localhost origins always allowed. Endpoints and seman
 | "Read the balance right after the transfer" | Ciphertexts settle async. Use `balancesSettled`, respect `pending`. |
 | "This Safe can decrypt directly" | Smart accounts always go through sessions. |
 | "Parse the amount from the indexer" | The indexer only serves handles, plaintext never leaves the TEE. |
-| "Hardcode the addresses" | Pass `network`, the SDK ships v1 addresses. |
+| "Hardcode the addresses" | Pass `network`, the SDK ships the addresses. |
 | "cToken uses FHE" | It is TEE-based. Say TEE. |
 
 ## Docs

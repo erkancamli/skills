@@ -1,6 +1,6 @@
 {
   "name": "inco",
-  "description": "Build on Inco, full-stack programmable privacy for blockchains. Two skills: lightning for confidential smart contracts, dApps, and games on EVM, and ctoken for integrating Inco's Confidential Token with the @inco/ctoken SDK.",
+  "description": "Build on Inco, full-stack programmable privacy for blockchains. Two skills: lightning for confidential smart contracts, dApps, and games on EVM with the @inco/lightning Solidity lib and @inco/lightning-js SDK, and ctoken for integrating Inco's Confidential Token with the @inco/ctoken SDK.",
   "version": "1.1.0",
   "author": {
     "name": "Inco",

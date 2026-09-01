@@ -24,7 +24,7 @@
 
 ## What the ctoken skill does
 
-Ships the v1 facts (networks, addresses, indexer URLs), knows all three `@inco/ctoken` layers (core client, React hooks, UI kit), and gets the tricky parts right: sessions, the smart-account rule, and async balance settling.
+Ships the live facts (networks, addresses, indexer URLs), knows all three `@inco/ctoken` layers (core client, React hooks, UI kit), and gets the tricky parts right: sessions, the smart-account rule, and async balance settling.
 
 ## Install
 
