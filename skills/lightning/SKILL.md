@@ -10,7 +10,7 @@ description: >
   sealed auction, social deduction, fog-of-war, word/code-guessing.
   TRIGGER: imports "@inco/lightning" or "@inco/lightning-js" (or legacy "@inco/js"), mentions Inco, confidential EVM contracts, encrypted
   types, "what should be private in my game", on-chain poker/mafia/minesweeper/word-guessing, fog of war,
-  provably fair.
+  provably fair, private ballot, DAO governance, sealed vote, token holder vote.
   NOT for: ZK proofs, FHE/fhevm circuits.
 ---
 
@@ -111,6 +111,10 @@ Designing a hidden-information game (casino/provably-fair, cards, board, sealed 
 
 **Design before code (RIGID):** do NOT write any Solidity until you have answered the decision tree — *what is secret, from whom, and when does it reveal*. Code written before those answers bakes in the wrong privacy boundary and gets rewritten. "The game is simple, I'll design as I go" is the red flag — simple games still leak through event logs, public state, and reveal timing.
 
+## Building confidential governance?
+
+Private voting for a DAO, a token holder vote, a council election, a grants round: start at **[references/governance.md](references/governance.md)**. It settles the three design questions first (what is secret, when it reveals, who needs on-chain proof), then maps them to the primitives. The worked reference is [scripts/governance/ConfidentialBallot.sol](scripts/governance/ConfidentialBallot.sol): "public weight, private direction" ballots, tallies unreadable by anyone (admin included) until close, `Tallies` vs `WinnerOnly` reveal modes, vote changes, silent invalid ballots, and attested `finalize()` with handle binding so a timelock can act on the result. It ships with nine Foundry tests on `IncoTest` and a matching frontend flow in [examples/confidential-vote.ts](examples/confidential-vote.ts).
+
 ## Core Concepts
 
 ### Encrypted Types
@@ -182,6 +186,7 @@ Before deploying any Inco contract, verify:
 - **Deployment & Testing**: Foundry/Hardhat setup, Docker local node, testnet deploy, IncoTest cheatcodes - see [deployment-testing.md](references/deployment-testing.md)
 - **EList**: Encrypted dynamic lists (graduated into core `@inco/lightning` in v1) - see [elist-reference.md](references/elist-reference.md)
 - **Confidential Games**: the game-design layer — start at [references/games/overview.md](references/games/overview.md)
+- **Confidential Governance**: private voting design (what is secret, when it reveals, on-chain proof) — see [references/governance.md](references/governance.md)
 
 ## Ready-to-Use Templates
 
@@ -190,6 +195,7 @@ Before deploying any Inco contract, verify:
 - [scripts/incoHelper.ts](scripts/incoHelper.ts) - Frontend utility: encrypt, decrypt with retry, fee fetching, attestation formatting
 - [scripts/games/mines/](scripts/games/mines/) - **Confidential Mines** (Model A wager) — encrypted board shuffle, sticky accumulator, on-chain attestation settlement, factory bankroll/liability. Audited reference (`Mines.sol` + `MinesMath.sol` + `MinesFactory.sol`)
 - [scripts/games/hangman/IncoHangMan.sol](scripts/games/hangman/IncoHangMan.sol) - **Confidential Hangman** (Model B word-guess) — packed word, `e.eq` match, private per-player decrypt, client-side settlement. POC — see header caveats
+- [scripts/governance/ConfidentialBallot.sol](scripts/governance/ConfidentialBallot.sol) - **Confidential Ballot** (DAO / token holder voting) — encrypted choice, weighted encrypted tallies via `eq`/`select`/`add`, vote change by subtraction, `Tallies` or `WinnerOnly` reveal (select-chain running max), attested `finalize()` with per-handle binding. Tests in [ConfidentialBallot.t.sol](scripts/governance/ConfidentialBallot.t.sol)
 
 ## Runnable Examples
 
@@ -197,6 +203,7 @@ Before deploying any Inco contract, verify:
 - [examples/confidential-token-interaction.ts](examples/confidential-token-interaction.ts) - Mint, transfer, approve, transferFrom with encrypted token
 - [examples/attestation-flow.ts](examples/attestation-flow.ts) - All 3 attestation patterns end-to-end (decrypt, reveal, compute)
 - [examples/session-key-decrypt.ts](examples/session-key-decrypt.ts) - Session keys for popup-free decryption and delegation
+- [examples/confidential-vote.ts](examples/confidential-vote.ts) - Cast a private ballot, decrypt your own receipt, then close / attestedReveal / finalize a proposal on-chain
 
 ## Troubleshooting
 
