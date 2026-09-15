@@ -10,7 +10,7 @@ description: >
   sealed auction, social deduction, fog-of-war, word/code-guessing.
   TRIGGER: imports "@inco/lightning" or "@inco/lightning-js" (or legacy "@inco/js"), mentions Inco, confidential EVM contracts, encrypted
   types, "what should be private in my game", on-chain poker/mafia/minesweeper/word-guessing, fog of war,
-  provably fair.
+  provably fair, private ballot, DAO governance, sealed vote, token holder vote.
   NOT for: ZK proofs, FHE/fhevm circuits.
 ---
 
@@ -182,6 +182,7 @@ Before deploying any Inco contract, verify:
 - **Deployment & Testing**: Foundry/Hardhat setup, Docker local node, testnet deploy, IncoTest cheatcodes - see [deployment-testing.md](references/deployment-testing.md)
 - **EList**: Encrypted dynamic lists (graduated into core `@inco/lightning` in v1) - see [elist-reference.md](references/elist-reference.md)
 - **Confidential Games**: the game-design layer — start at [references/games/overview.md](references/games/overview.md)
+- **Confidential Governance**: private voting design (what is secret, when it reveals, who needs on-chain proof) — see [references/governance.md](references/governance.md)
 
 ## Ready-to-Use Templates
 
