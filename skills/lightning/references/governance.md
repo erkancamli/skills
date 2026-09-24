@@ -20,7 +20,7 @@ Do NOT write Solidity before answering these. Each answer changes the contract.
 
 ### 1. What is secret?
 
-| Piece of state | Default in the reference | Options |
+| Piece of state | Recommended default | Options |
 |---|---|---|
 | Ballot direction (which option) | **Secret**, forever (except the voter's own receipt) | Always secret; this is the point |
 | Voting weight per address | **Public** (snapshot) | Public (ERC20Votes / NFT / allowlist) or confidential (see [Confidential weight](#confidential-weight-extension)) |
@@ -33,13 +33,13 @@ Do NOT write Solidity before answering these. Each answer changes the contract.
 
 ### 2. When does it reveal?
 
-- **Never during the window.** No view function returns anything decryptable about the tally before `close()`. The reference stores tallies with `allowThis()` only; there is no `allow(admin)` anywhere.
+- **Never during the window.** No view function returns anything decryptable about the tally before `close()`. Store tallies with `allowThis()` only and never `allow` a tally handle to an admin or any other address.
 - **At close, exactly one of:** all tallies (`e.reveal` on each handle) or the winner index only (`e.reveal` on a select-chain running max). Pick this per proposal, at creation, because it cannot be changed after votes exist without breaking the promise voters were given.
 - **Reveal is irreversible.** `e.reveal` makes the handle publicly decryptable forever. That is exactly right for a final result and exactly wrong for anything mid-vote.
 
 ### 3. Who needs proof on-chain?
 
-If a timelock, treasury, or another contract acts on the result, the plaintext must come back on-chain **with an attestation** and the contract must **bind each attestation to the handle it expects** (`decryption.handle == euint256.unwrap(tallies[i])`). Signature validity alone is not enough: a valid attestation for the wrong handle (a different proposal, a different option) must be rejected. The reference does this in `finalize()` and the tests cover the swapped-attestation case.
+If a timelock, treasury, or another contract acts on the result, the plaintext must come back on-chain **with an attestation** and the contract must **bind each attestation to the handle it expects** (`decryption.handle == euint256.unwrap(tallies[i])`). Signature validity alone is not enough: a valid attestation for the wrong handle (a different proposal, a different option) must be rejected. Do this in a `finalize()` function, and include the swapped-attestation case in your tests.
 
 If only humans read the result (a signal vote), `attestedReveal` in the frontend is enough and `finalize()` is optional.
 
@@ -49,15 +49,15 @@ If only humans read the result (a signal vote), `attestedReveal` in the frontend
 |---|---|---|
 | Ballot ingestion | `bytes.newEuint256(msg.sender)` + `inco.getFee()` | The ciphertext is bound to the voter; the fee is per ciphertext |
 | Validity | No check at all: an out-of-range choice matches no option in the tally loop | Never `require` on an encrypted condition; an invalid ballot silently counts zero, so the tx itself leaks nothing |
-| Per-option tally | `choice.eq(i).select(weight, 0)` then `tally.add(...)`, for every option | Every option is touched on every vote, so the gas and the trace are the same whatever the choice |
+| Per-option tally | `choice.eq(i).select(weight.asEuint256(), uint256(0).asEuint256())` then `tally.add(...)`, for every option | Every option is touched on every vote, so the gas and the trace are the same whatever the choice |
 | Vote change | Re-run the same loop with `sub` on the previous ballot, then `add` on the new one | Needs the old choice handle: keep `allowThis()` on it |
 | Access | `tally.allowThis()` after every update; `choice.allow(voter)` only if you want receipts | Missing `allowThis` = the contract can never add to that tally again |
-| Winner without decrypting | `better = tallies[i].gt(best); best = better.select(tallies[i], best); idx = better.select(i, idx)` | A running max entirely under encryption; only `idx` is revealed |
+| Winner without decrypting | `better = tallies[i].gt(best); best = better.select(tallies[i], best); idx = better.select(i.asEuint256(), idx)` | A running max entirely under encryption; only `idx` is revealed |
 | Publish | `e.reveal(handle)` at close, `attestedReveal` off-chain, `finalize(attestations)` on-chain | Reveal makes the handle public; the attestation makes the plaintext trustworthy on-chain |
 
 ### Gas and options count
 
-The tally loop is O(options) encrypted ops per vote (an `eq`, a `select`, an `add`, an `allow` each). The reference caps options at 8. For ranked-choice or many-candidate elections, pack choices or run one proposal per seat rather than growing the loop.
+The tally loop is O(options) encrypted ops per vote (an `eq`, a `select`, an `add`, an `allow` each). Cap the number of options per proposal (8 is a reasonable ceiling). For ranked-choice or many-candidate elections, pack choices or run one proposal per seat rather than growing the loop.
 
 ### Fee model
 
@@ -67,32 +67,32 @@ Each ballot ingests one ciphertext, so the voter pays `inco.getFee()` (`payable`
 
 Be explicit with your users about these, because "private voting" sets expectations:
 
-- **Participation.** The `castVote` transaction and the `VoteCast(id, voter, weight, changed)` event show who voted, with what weight, and whether they changed their mind. Never log the choice, the ciphertext, or a tally handle; the reference logs none of them.
+- **Participation.** The `castVote` transaction, and any event you emit for it (for example `VoteCast(id, voter, weight, changed)`), show who voted, with what weight, and whether they changed their mind. Never log the choice, the ciphertext, or a tally handle.
 - **Turnout and total weight cast.** Plaintext sums of public weights. Needed for quorum; harmless because weights are public anyway.
 - **The number of options and the proposal text.** Obviously.
 - **Timing.** Block timestamps of votes. If "voted 30 seconds after the whale" is sensitive, batch votes through a relayer.
 
-To hide the voter set itself you need to break the link between EOA and ballot: a relayer or session-key path that submits ballots on behalf of voters (the contract-facing `castVote(id, euint256)` overload plus `isAllowed` is the hook), combined with an eligibility proof that does not name the voter. That is a different privacy boundary and a different threat model; scope it as its own design.
+To hide the voter set itself you need to break the link between EOA and ballot: a relayer or session-key path that submits ballots on behalf of voters (a contract-facing `castVote(uint256 id, euint256 choice)` overload that checks `isAllowed` on the handle is the natural hook), combined with an eligibility proof that does not name the voter. That is a different privacy boundary and a different threat model; scope it as its own design.
 
 ## Receipts vs coercion resistance
 
-`VOTER_CAN_DECRYPT_OWN_BALLOT = true` in the reference gives every voter a private receipt (`attestedDecrypt` on their own choice handle). This is great for verifiability ("did my vote land as cast?") and the wallet-signed decrypt keeps it private. It also means a voter *can* prove their vote to a third party, which is the definition of a coercion-vulnerable scheme.
+A receipt flag such as `VOTER_CAN_DECRYPT_OWN_BALLOT`, set to `true` (the contract calls `choice.allow(voter)`), gives every voter a private receipt (`attestedDecrypt` on their own choice handle). This is great for verifiability ("did my vote land as cast?") and the wallet-signed decrypt keeps it private. It also means a voter *can* prove their vote to a third party, which is the definition of a coercion-vulnerable scheme.
 
-Flip the constant to `false` when coercion resistance matters more than receipts (contested elections, anything with real money on the line). There is no middle ground on-chain: either the voter can decrypt the handle or they cannot.
+Set it to `false` when coercion resistance matters more than receipts (contested elections, anything with real money on the line). There is no middle ground on-chain: either the voter can decrypt the handle or they cannot.
 
 ## Confidential weight extension
 
-When voting power itself is sensitive (a confidential token, a private cap table), the weight becomes an `euint256` too and the tally line becomes `tally.add(choice.eq(i).select(encWeight, 0))`. Three things change:
+When voting power itself is sensitive (a confidential token, a private cap table), the weight becomes an `euint256` too and the tally line becomes `tally.add(choice.eq(i).select(encWeight, uint256(0).asEuint256()))`. Three things change:
 
 1. **Provenance.** The contract must not accept any handle the voter happens to be allowed on; it must accept only a weight handle produced by the trusted source. Have the confidential token contract call the ballot (`msg.sender == weightSource`) with the voter's snapshot handle, rather than letting voters pass handles in.
 2. **Quorum and turnout become encrypted.** `totalWeightCast` is an `euint256`; quorum is `totalWeightCast.ge(quorum)` revealed as an `ebool` at close.
-3. **Double counting.** The public-weight reference recomputes the subtraction on vote change from the stored plaintext weight. With encrypted weights, store the weight handle used at cast time and subtract that exact handle, not a fresh snapshot.
+3. **Double counting.** A public-weight design recomputes the subtraction on vote change from the stored plaintext weight. With encrypted weights, store the weight handle used at cast time and subtract that exact handle, not a fresh snapshot.
 
 Combine with `WinnerOnly` mode and nothing about the distribution of power ever surfaces.
 
 ## Checklist before deploying a ballot
 
-- [ ] Weights come from a real snapshot, not an admin `setWeights` (remove or timelock the admin path)
+- [ ] Weights come from a real snapshot, not an admin setter (remove or timelock any admin path)
 - [ ] Reveal mode chosen per proposal and stated to voters up front
 - [ ] No `allow` on any tally handle to any address other than `address(this)`
 - [ ] Every tally update ends in `allowThis()`; the old choice handle keeps `allowThis()` for vote changes
